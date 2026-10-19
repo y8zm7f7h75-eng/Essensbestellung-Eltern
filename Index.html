@@ -1,0 +1,625 @@
+
+
+<!DOCTYPE html>
+
+<html lang="de">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="theme-color" content="#dcefeb">
+
+<title>Essensbestellung für Eltern</title>
+
+<style>
+
+* { box-sizing: border-box; }
+
+body {
+
+  margin: 0;
+
+  font-family: Arial, sans-serif;
+
+  background: #f5f8f7;
+
+  color: #263b38;
+
+}
+
+header {
+
+  background: #dcefeb;
+
+  padding: 22px 16px;
+
+  text-align: center;
+
+}
+
+header h1 { font-size: 23px; margin: 0 0 8px; }
+
+header p { margin: 0; font-size: 14px; }
+
+main { max-width: 850px; margin: auto; padding: 16px; }
+
+section {
+
+  background: white;
+
+  border-radius: 14px;
+
+  padding: 16px;
+
+  margin-bottom: 16px;
+
+  box-shadow: 0 2px 8px #0000000b;
+
+}
+
+h2 { font-size: 19px; margin-top: 0; }
+
+label { display: block; margin: 12px 0 6px; font-weight: bold; }
+
+input, select, button {
+
+  font: inherit;
+
+  padding: 11px;
+
+  border-radius: 8px;
+
+}
+
+input, select { max-width: 100%; border: 1px solid #aabbb6; }
+
+button {
+
+  border: 0;
+
+  background: #cce7df;
+
+  color: #203d36;
+
+  cursor: pointer;
+
+  margin: 3px;
+
+}
+
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.tabs button.active { background: #477b6e; color: white; }
+
+.day {
+
+  display: grid;
+
+  grid-template-columns: minmax(95px, 1fr) auto auto;
+
+  gap: 8px;
+
+  align-items: center;
+
+  border-bottom: 1px solid #e5ece9;
+
+  padding: 10px 0;
+
+}
+
+.choice.active { background: #477b6e; color: white; }
+
+.note { font-size: 13px; color: #536761; }
+
+.warning { color: #9a3d32; font-weight: bold; }
+
+#menuPreview { max-width: 100%; margin-top: 12px; border-radius: 8px; }
+
+table { width: 100%; border-collapse: collapse; }
+
+th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
+
+@media (max-width: 480px) {
+
+  main { padding: 10px; }
+
+  section { padding: 13px; }
+
+  .day { grid-template-columns: minmax(80px, 1fr) auto auto; gap: 3px; }
+
+  .day button { padding: 9px 12px; }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+  <h1>Essensbestellung</h1>
+
+  <p>Testversion – nur mit Beispieldaten</p>
+
+</header>
+
+<main>
+
+<section>
+
+  <h2>Ansicht wählen</h2>
+
+  <div class="tabs">
+
+    <button class="active" id="parentTab" onclick="showView('parent')">Eltern</button>
+
+    <button id="careTab" onclick="showView('care')">Betreuung</button>
+
+  </div>
+
+  <p class="note">Demo ohne Anmeldung. Noch keine echten Daten eingeben!</p>
+
+</section>
+
+<section>
+
+  <h2>Menüplan</h2>
+
+  <p>Hier können Eltern den Menüplan ansehen.</p>
+
+  <div id="menuArea">
+
+    <p class="note">Noch kein Menüplan für den Test hochgeladen.</p>
+
+  </div>
+
+  <div id="menuUpload" hidden>
+
+    <label for="menuFile">Menüplan als Bild auswählen</label>
+
+    <input type="file" id="menuFile" accept="image/*">
+
+    <p class="note">Das Bild wird nur in dieser Browseransicht gezeigt.</p>
+
+  </div>
+
+  <img id="menuPreview" alt="Vorschau des Menüplans" hidden>
+
+</section>
+
+<section id="orderSection">
+
+  <h2>Bestellung für nächste Woche</h2>
+
+  <p>Beispiel-Familie: Familie Muster</p>
+
+  <label for="child">Kind auswählen</label>
+
+  <select id="child"></select>
+
+  <p class="note">X = Essen bestellen · S = eigenes Essen</p>
+
+  <div id="days"></div>
+
+  <p id="deadline" class="note"></p>
+
+  <button id="saveOrder" onclick="saveOrder()">Auswahl speichern</button>
+
+  <p id="saveMessage" role="status"></p>
+
+</section>
+
+<section id="careSection" hidden>
+
+  <h2>Betreuung – Testübersicht</h2>
+
+  <label for="price">Preis pro Essen (€)</label>
+
+  <input id="price" type="number" min="0" step="0.10" value="3.90">
+
+  <button onclick="updatePrice()">Preis für zukünftige Bestellungen ändern</button>
+
+  <p id="priceMessage" class="note"></p>
+
+  <label for="cutoff">Bestellschluss</label>
+
+  <input id="cutoff" type="datetime-local">
+
+  <button onclick="saveCutoff()">Bestellschluss festlegen</button>
+
+  <label for="cancelChild">Bestellung stornieren</label>
+
+  <select id="cancelChild"></select>
+
+  <label for="cancelDay">Wochentag</label>
+
+  <select id="cancelDay">
+
+    <option>Montag</option><option>Dienstag</option>
+
+    <option>Mittwoch</option><option>Donnerstag</option>
+
+    <option>Freitag</option>
+
+  </select>
+
+  <button onclick="cancelMeal()">Essen stornieren</button>
+
+  <p class="note">Eine Stornierung hier meldet sie nicht automatisch beim Lieferanten.</p>
+
+  <h2>Wochenliste</h2>
+
+  <div id="weeklyList"></div>
+
+  <button onclick="window.print()">Wochenliste drucken</button>
+
+</section>
+
+<section>
+
+  <h2>Monatsübersicht – Beispieldaten</h2>
+
+  <p id="monthlyTotal"></p>
+
+  <p class="note">Die Abrechnung ist eine Demo, noch keine verbindliche Zahlungsübersicht.</p>
+
+</section>
+
+</main>
+
+<script>
+
+const children = [
+
+  { id: "a", name: "Kind Beispiel 1", allergy: "Allergie A (Demo)" },
+
+  { id: "b", name: "Kind Beispiel 2", allergy: "" },
+
+  { id: "c", name: "Kind Beispiel 3", allergy: "Allergie B (Demo)" },
+
+  { id: "d", name: "Kind Beispiel 4", allergy: "Allergie C (Demo)" }
+
+];
+
+const weekdays = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+
+let orders = {};
+
+let cancellations = {};
+
+let price = 3.90;
+
+let cutoff = nextThursday();
+
+let view = "parent";
+
+function nextThursday() {
+
+  const d = new Date();
+
+  const daysUntil = (4 - d.getDay() + 7) % 7 || 7;
+
+  d.setDate(d.getDate() + daysUntil);
+
+  d.setHours(12, 30, 0, 0);
+
+  return d;
+
+}
+
+function key(child, day) { return child + "_" + day; }
+
+function selected(child, day) { return orders[key(child, day)] || ""; }
+
+function isCancelled(child, day) {
+
+  return !!cancellations[key(child, day)];
+
+}
+
+function init() {
+
+  const childSelect = document.getElementById("child");
+
+  const cancelSelect = document.getElementById("cancelChild");
+
+  children.forEach(c => {
+
+    childSelect.add(new Option(c.name, c.id));
+
+    cancelSelect.add(new Option(c.name, c.id));
+
+  });
+
+  childSelect.addEventListener("change", renderDays);
+
+  document.getElementById("cutoff").value = localDateTime(cutoff);
+
+  renderDays();
+
+  renderAll();
+
+}
+
+function localDateTime(d) {
+
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+
+    .toISOString().slice(0, 16);
+
+}
+
+function renderDays() {
+
+  const child = document.getElementById("child").value;
+
+  const area = document.getElementById("days");
+
+  area.innerHTML = "";
+
+  weekdays.forEach(day => {
+
+    const row = document.createElement("div");
+
+    row.className = "day";
+
+    const name = document.createElement("strong");
+
+    name.textContent = day;
+
+    row.appendChild(name);
+
+    ["X", "S"].forEach(value => {
+
+      const b = document.createElement("button");
+
+      b.textContent = value;
+
+      b.className = "choice" + (selected(child, day) === value ? " active" : "");
+
+      b.disabled = view !== "parent" || new Date() >= cutoff;
+
+      b.onclick = () => {
+
+        orders[key(child, day)] = value;
+
+        renderDays();
+
+        renderAll();
+
+      };
+
+      row.appendChild(b);
+
+    });
+
+    area.appendChild(row);
+
+  });
+
+  const c = children.find(x => x.id === child);
+
+  const allergy = document.createElement("p");
+
+  allergy.className = c && c.allergy ? "warning" : "note";
+
+  allergy.textContent = c && c.allergy
+
+    ? "WICHTIG – Sonderessen prüfen: " + c.allergy
+
+    : "Für dieses Beispielkind ist keine Allergieangabe hinterlegt.";
+
+  area.appendChild(allergy);
+
+  document.getElementById("deadline").textContent =
+
+    "Bestellschluss: " + cutoff.toLocaleString("de-DE");
+
+  document.getElementById("saveOrder").disabled =
+
+    view !== "parent" || new Date() >= cutoff;
+
+}
+
+function saveOrder() {
+
+  document.getElementById("saveMessage").textContent =
+
+    "Demo-Auswahl ist in dieser Ansicht gespeichert. Noch keine gemeinsame Übertragung.";
+
+  renderAll();
+
+}
+
+function showView(which) {
+
+  view = which;
+
+  document.getElementById("parentTab").classList.toggle("active", which === "parent");
+
+  document.getElementById("careTab").classList.toggle("active", which === "care");
+
+  document.getElementById("careSection").hidden = which !== "care";
+
+  document.getElementById("menuUpload").hidden = which !== "care";
+
+  document.getElementById("orderSection").hidden = which !== "parent";
+
+  renderDays();
+
+  renderAll();
+
+}
+
+function updatePrice() {
+
+  const v = Number(document.getElementById("price").value);
+
+  if (!Number.isFinite(v) || v < 0) {
+
+    document.getElementById("priceMessage").textContent = "Bitte einen gültigen Preis eingeben.";
+
+    return;
+
+  }
+
+  price = v;
+
+  document.getElementById("priceMessage").textContent =
+
+    "Demo-Preis geändert. Eine echte historische Preisverwaltung ist noch nicht eingerichtet.";
+
+  renderAll();
+
+}
+
+function saveCutoff() {
+
+  const v = new Date(document.getElementById("cutoff").value);
+
+  if (Number.isNaN(v.getTime())) return;
+
+  cutoff = v;
+
+  renderDays();
+
+  renderAll();
+
+}
+
+function cancelMeal() {
+
+  const child = document.getElementById("cancelChild").value;
+
+  const day = document.getElementById("cancelDay").value;
+
+  if (selected(child, day) !== "X") {
+
+    alert("Für dieses Kind ist an diesem Tag kein Essen bestellt.");
+
+    return;
+
+  }
+
+  cancellations[key(child, day)] = {
+
+    date: new Date().toISOString(),
+
+    supplierNotified: false
+
+  };
+
+  renderAll();
+
+  alert("Demo-Stornierung erfasst. Der Lieferant wurde NICHT benachrichtigt.");
+
+}
+
+function renderAll() {
+
+  let count = 0;
+
+  let cancelled = 0;
+
+  const area = document.getElementById("weeklyList");
+
+  if (!area) return;
+
+  area.innerHTML = "";
+
+  weekdays.forEach(day => {
+
+    const h = document.createElement("h3");
+
+    h.textContent = day;
+
+    area.appendChild(h);
+
+    const table = document.createElement("table");
+
+    table.innerHTML = "<tr><th>Kind</th><th>Bestellung</th><th>Hinweis</th></tr>";
+
+    children.forEach(c => {
+
+      const value = selected(c.id, day);
+
+      if (!value) return;
+
+      const isX = value === "X";
+
+      const cancel = isCancelled(c.id, day);
+
+      if (isX && cancel) cancelled++;
+
+      if (isX && !cancel) count++;
+
+      const tr = document.createElement("tr");
+
+      [c.name, isX ? (cancel ? "Storniert" : "X") : "S",
+
+        [c.allergy, cancel ? "Storniert – Lieferant nicht benachrichtigt" : ""]
+
+          .filter(Boolean).join(" · ") || "–"].forEach(text => {
+
+            const td = document.createElement("td");
+
+            td.textContent = text;
+
+            tr.appendChild(td);
+
+          });
+
+      table.appendChild(tr);
+
+    });
+
+    area.appendChild(table);
+
+  });
+
+  document.getElementById("monthlyTotal").textContent =
+
+    "Aktuell nicht stornierte Demo-Essen: " + count +
+
+    " · Stornierte Demo-Essen: " + cancelled +
+
+    " · Rechnerischer Betrag: " + (count * price).toLocaleString("de-DE",
+
+      { style: "currency", currency: "EUR" });
+
+}
+
+document.getElementById("menuFile").addEventListener("change", event => {
+
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+
+  const img = document.getElementById("menuPreview");
+
+  img.src = url;
+
+  img.hidden = false;
+
+  document.getElementById("menuArea").textContent =
+
+    "Menüplan in dieser Browseransicht ausgewählt.";
+
+});
+
+init();
+
+</script>
+
+</body>
+
+</html>
