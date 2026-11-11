@@ -627,6 +627,7 @@ async function updatePrice() {
   const priceInput = document.getElementById("price");
   const rawValue = priceInput.value.trim().replace(",", ".");
   const v = Number(rawValue);
+  const cents = Math.round(v * 100);
   const message = document.getElementById("priceMessage");
 
   if (rawValue === "" || !Number.isFinite(v) || v < 0) {
@@ -637,34 +638,28 @@ async function updatePrice() {
     message.textContent = "Bitte zuerst als Betreuung anmelden.";
     return;
   }
+  if (cents === Math.round(price * 100)) {
+    message.textContent = "Der Preis ist unverändert. Es wurde kein neuer Historieneintrag angelegt.";
+    return;
+  }
 
-  message.textContent = "Preis wird gespeichert …";
+  message.textContent = "Preis und Preishistorie werden gespeichert …";
   const { data, error } = await window.appSupabase
-    .from("app_settings")
-    .update({
-      meal_price_cents: Math.round(v * 100),
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", 1)
-    .select("meal_price_cents")
-    .maybeSingle();
+    .rpc("change_meal_price", { new_price_cents: cents });
 
   if (error) {
-    message.textContent = "Preis konnte nicht gespeichert werden: " + error.message;
+    message.textContent = "Preisänderung konnte nicht gespeichert werden: " + error.message;
     return;
   }
-  if (!data) {
-    message.textContent = "Es wurde kein Datensatz mit ID 1 geändert. Bitte app_settings prüfen.";
-    return;
-  }
-  if (Number(data.meal_price_cents) !== Math.round(v * 100)) {
-    message.textContent = "Supabase hat einen anderen Preis zurückgegeben: " + data.meal_price_cents + " Cent.";
+  if (Number(data) !== cents) {
+    message.textContent = "Die Datenbank hat die Preisänderung nicht wie erwartet bestätigt.";
     return;
   }
 
-  price = Number(data.meal_price_cents) / 100;
+  price = cents / 100;
   priceInput.value = price.toFixed(2).replace(".", ",");
-  message.textContent = "Preis in Supabase gespeichert und überprüft: " + price.toFixed(2).replace(".", ",") + " €.";
+  message.textContent = "Neuer Preis und Historieneintrag wurden in Supabase gespeichert: " +
+    price.toFixed(2).replace(".", ",") + " €.";
   renderAll();
 }
 
