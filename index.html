@@ -251,6 +251,8 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <button onclick="saveCutoff()">Bestellschluss festlegen</button>
 
+  <p id="cutoffMessage" class="note" role="status"></p>
+
   <label for="cancelChild">Bestellung stornieren</label>
 
   <select id="cancelChild"></select>
@@ -620,7 +622,21 @@ async function loadSettings() {
 
   price = Number(data.meal_price_cents) / 100;
   document.getElementById("price").value = price.toFixed(2).replace(".", ",");
+
+  const weekday = Number(data.cutoff_weekday);
+  const timeParts = String(data.cutoff_time || "12:30:00").split(":");
+  const hours = Number(timeParts[0]);
+  const minutes = Number(timeParts[1]);
+  const nextCutoff = new Date();
+  const daysUntil = (weekday - nextCutoff.getDay() + 7) % 7 || 7;
+  nextCutoff.setDate(nextCutoff.getDate() + daysUntil);
+  nextCutoff.setHours(hours, minutes, 0, 0);
+  cutoff = nextCutoff;
+  document.getElementById("cutoff").value = localDateTime(cutoff);
+
   message.textContent = "Gespeicherter Preis aus Supabase geladen.";
+  document.getElementById("cutoffMessage").textContent =
+    "Gespeicherter Bestellschluss aus Supabase geladen.";
 }
 
 async function updatePrice() {
@@ -663,16 +679,41 @@ async function updatePrice() {
   renderAll();
 }
 
-function saveCutoff() {
+async function saveCutoff() {
 
-  const v = new Date(document.getElementById("cutoff").value);
+  const input = document.getElementById("cutoff").value;
+  const v = new Date(input);
+  const message = document.getElementById("cutoffMessage");
 
-  if (Number.isNaN(v.getTime())) return;
+  if (!input || Number.isNaN(v.getTime())) {
+    message.textContent = "Bitte einen gültigen Bestellschluss auswählen.";
+    return;
+  }
+
+  if (!window.appSupabase || !staffAuthenticated) {
+    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+    return;
+  }
+
+  const weekday = v.getDay();
+  const time = String(v.getHours()).padStart(2, "0") + ":" +
+    String(v.getMinutes()).padStart(2, "0") + ":00";
+
+  message.textContent = "Bestellschluss wird in Supabase gespeichert …";
+  const { error } = await window.appSupabase
+    .from("app_settings")
+    .update({ cutoff_weekday: weekday, cutoff_time: time, updated_at: new Date().toISOString() })
+    .eq("id", 1);
+
+  if (error) {
+    message.textContent = "Bestellschluss konnte nicht gespeichert werden: " + error.message;
+    return;
+  }
 
   cutoff = v;
-
+  message.textContent = "Bestellschluss wurde in Supabase gespeichert: " +
+    cutoff.toLocaleString("de-DE");
   renderDays();
-
   renderAll();
 
 }
