@@ -384,8 +384,7 @@ function setStaffAccess(allowed) {
 function setParentAccess(allowed) {
   parentAuthenticated = allowed;
   document.getElementById("parentLogin").hidden = allowed;
-  document.getElementById("parentTools").hidden =
-    !allowed || children.length === 0;
+  document.getElementById("parentTools").hidden = !allowed;
 }
 
 function fillChildSelects() {
@@ -685,7 +684,7 @@ function renderDays() {
 
   document.getElementById("saveOrder").disabled =
 
-    view !== "parent" || new Date() >= cutoff;
+    view !== "parent" || !parentAuthenticated || children.length === 0 || new Date() >= cutoff;
 
 }
 
