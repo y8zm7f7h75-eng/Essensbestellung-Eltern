@@ -220,6 +220,9 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <h2>Betreuung – Testübersicht</h2>
 
+  <h3>Supabase-Verbindung</h3>
+  <p id="connectionStatus" class="note" role="status">Verbindung wird vorbereitet …</p>
+
   <label for="price">Preis pro Essen (€)</label>
 
   <input id="price" type="number" min="0" step="0.10" value="3.90">
@@ -274,7 +277,30 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+
+function setupSupabaseStatus() {
+  const status = document.getElementById("connectionStatus");
+  if (!status) return;
+
+  if (window.supabase && typeof window.supabase.createClient === "function") {
+    const SUPABASE_URL = "https://winbzdbpaqhopigtrugt.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wCHHu_lyGwm-oxb_4a9yVQ_klTchB4w";
+
+    window.appSupabase = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    status.textContent =
+      "Supabase-Bibliothek geladen; Client vorbereitet. Es wurden noch keine Daten übertragen und kein Datenbankzugriff geprüft.";
+  } else {
+    status.textContent =
+      "Die Supabase-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen.";
+  }
+}
 
 const children = [
 
@@ -325,6 +351,8 @@ function isCancelled(child, day) {
 }
 
 function init() {
+
+  setupSupabaseStatus();
 
   const childSelect = document.getElementById("child");
 
