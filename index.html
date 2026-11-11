@@ -198,9 +198,21 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <h2>Bestellung für nächste Woche</h2>
 
-  <p>Beispiel-Familie: Familie Muster</p>
+  <div id="parentLogin">
+    <h3>Anmeldung Eltern</h3>
+    <label for="parentEmail">E-Mail-Adresse</label>
+    <input id="parentEmail" type="email" autocomplete="username" placeholder="Test-E-Mail-Adresse">
+    <label for="parentPassword">Passwort</label>
+    <input id="parentPassword" type="password" autocomplete="current-password" placeholder="Passwort">
+    <button onclick="loginParent()">Anmelden</button>
+    <p id="parentAuthMessage" class="note" role="status">Bitte mit einem freigeschalteten Eltern-Testkonto anmelden.</p>
+  </div>
 
-  <label for="child">Kind auswählen</label>
+  <div id="parentTools" hidden>
+    <p class="note">Angemeldet. Angezeigt werden nur Kinder deiner Familie.</p>
+    <button onclick="logoutParent()">Abmelden</button>
+
+    <label for="child">Kind auswählen</label>
 
   <select id="child"></select>
 
@@ -212,7 +224,8 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <button id="saveOrder" onclick="saveOrder()">Auswahl speichern</button>
 
-  <p id="saveMessage" role="status"></p>
+    <p id="saveMessage" role="status"></p>
+  </div>
 
 </section>
 
@@ -337,17 +350,15 @@ function setupSupabaseStatus() {
   }
 }
 
-const children = [
-
+const demoChildren = [
   { id: "a", name: "Kind Beispiel 1", allergy: "Allergie A (Demo)" },
-
   { id: "b", name: "Kind Beispiel 2", allergy: "" },
-
   { id: "c", name: "Kind Beispiel 3", allergy: "Allergie B (Demo)" },
-
   { id: "d", name: "Kind Beispiel 4", allergy: "Allergie C (Demo)" }
-
 ];
+
+let children = demoChildren.slice();
+let parentAuthenticated = false;
 
 const weekdays = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
 
@@ -368,6 +379,116 @@ function setStaffAccess(allowed) {
   document.getElementById("staffTools").hidden = !allowed;
   document.getElementById("menuUpload").hidden =
     view !== "care" || !allowed;
+}
+
+function setParentAccess(allowed) {
+  parentAuthenticated = allowed;
+  document.getElementById("parentLogin").hidden = allowed;
+  document.getElementById("parentTools").hidden =
+    !allowed || children.length === 0;
+}
+
+function fillChildSelects() {
+  const childSelect = document.getElementById("child");
+  const cancelSelect = document.getElementById("cancelChild");
+  childSelect.innerHTML = "";
+  cancelSelect.innerHTML = "";
+
+  children.forEach(c => {
+    childSelect.add(new Option(c.name, c.id));
+    cancelSelect.add(new Option(c.name, c.id));
+  });
+
+  renderDays();
+  renderAll();
+}
+
+async function loadParentChildren(user) {
+  if (!user || !window.appSupabase) return false;
+
+  const { data: membership, error: membershipError } = await window.appSupabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError || !membership) return false;
+
+  const { data: rows, error: childrenError } = await window.appSupabase
+    .from("children")
+    .select("id, first_name, active")
+    .eq("family_id", membership.family_id)
+    .eq("active", true)
+    .order("first_name");
+
+  if (childrenError) {
+    document.getElementById("parentAuthMessage").textContent =
+      "Die Kinder konnten nicht geladen werden. Bitte Betreuung informieren.";
+    return false;
+  }
+
+  children = (rows || []).map(c => ({
+    id: c.id,
+    name: c.first_name,
+    allergy: ""
+  }));
+
+  fillChildSelects();
+  setParentAccess(true);
+
+  if (children.length === 0) {
+    document.getElementById("parentAuthMessage").textContent =
+      "Für diese Familie sind noch keine aktiven Kinder hinterlegt.";
+  } else {
+    document.getElementById("parentAuthMessage").textContent =
+      "Anmeldung erfolgreich. Die Kinder deiner Familie wurden geladen.";
+  }
+
+  return true;
+}
+
+async function loginParent() {
+  const message = document.getElementById("parentAuthMessage");
+  const email = document.getElementById("parentEmail").value.trim();
+  const password = document.getElementById("parentPassword").value;
+
+  if (!window.appSupabase) {
+    message.textContent = "Die Verbindung zu Supabase ist noch nicht bereit.";
+    return;
+  }
+  if (!email || !password) {
+    message.textContent = "Bitte E-Mail-Adresse und Passwort eingeben.";
+    return;
+  }
+
+  message.textContent = "Anmeldung wird geprüft …";
+  const { data, error } = await window.appSupabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    message.textContent = "Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.";
+    return;
+  }
+
+  const allowed = await loadParentChildren(data.user);
+  if (!allowed) {
+    await window.appSupabase.auth.signOut();
+    setParentAccess(false);
+    message.textContent =
+      "Für diesen Benutzer ist noch keine Familienzuordnung eingerichtet.";
+  }
+}
+
+async function logoutParent() {
+  if (window.appSupabase) await window.appSupabase.auth.signOut();
+  setParentAccess(false);
+  children = demoChildren.slice();
+  fillChildSelects();
+  document.getElementById("parentPassword").value = "";
+  document.getElementById("parentAuthMessage").textContent =
+    "Du bist abgemeldet. Für die Bestellung bitte erneut anmelden.";
 }
 
 async function verifyStaffUser(user) {
@@ -430,12 +551,20 @@ async function logoutCare() {
 async function restoreStaffSession() {
   if (!window.appSupabase) return;
   const { data } = await window.appSupabase.auth.getSession();
+
   if (data.session && await verifyStaffUser(data.session.user)) {
     setStaffAccess(true);
+    setParentAccess(false);
     document.getElementById("authMessage").textContent = "Betreuung ist angemeldet.";
     await loadSettings();
   } else {
     setStaffAccess(false);
+    if (data.session) {
+      const parentAllowed = await loadParentChildren(data.session.user);
+      if (!parentAllowed) setParentAccess(false);
+    } else {
+      setParentAccess(false);
+    }
   }
 }
 
@@ -468,19 +597,9 @@ function init() {
   setupSupabaseStatus();
   restoreStaffSession();
 
-  const childSelect = document.getElementById("child");
+  fillChildSelects();
 
-  const cancelSelect = document.getElementById("cancelChild");
-
-  children.forEach(c => {
-
-    childSelect.add(new Option(c.name, c.id));
-
-    cancelSelect.add(new Option(c.name, c.id));
-
-  });
-
-  childSelect.addEventListener("change", renderDays);
+  document.getElementById("child").addEventListener("change", renderDays);
 
   document.getElementById("cutoff").value = localDateTime(cutoff);
 
@@ -574,7 +693,7 @@ function saveOrder() {
 
   document.getElementById("saveMessage").textContent =
 
-    "Demo-Auswahl ist in dieser Ansicht gespeichert. Noch keine gemeinsame Übertragung.";
+    "Auswahl in der Testansicht übernommen. Die Übertragung der Bestellung an Supabase ist noch nicht eingerichtet.";
 
   renderAll();
 
