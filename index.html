@@ -223,6 +223,20 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <h3>Supabase-Verbindung</h3>
   <p id="connectionStatus" class="note" role="status">Verbindung wird vorbereitet …</p>
 
+  <div id="careLogin">
+    <h3>Anmeldung Betreuung</h3>
+    <label for="careEmail">E-Mail-Adresse</label>
+    <input id="careEmail" type="email" autocomplete="username" placeholder="Test-E-Mail-Adresse">
+    <label for="carePassword">Passwort</label>
+    <input id="carePassword" type="password" autocomplete="current-password" placeholder="Passwort">
+    <button onclick="loginCare()">Anmelden</button>
+    <p id="authMessage" class="note" role="status">Bitte mit dem angelegten Betreuungs-Testbenutzer anmelden.</p>
+  </div>
+
+  <div id="staffTools" hidden>
+  <p class="note">Angemeldet als Betreuung.</p>
+  <button onclick="logoutCare()">Abmelden</button>
+
   <label for="price">Preis pro Essen (€)</label>
 
   <input id="price" type="number" min="0" step="0.10" value="3.90">
@@ -262,6 +276,7 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <div id="weeklyList"></div>
 
   <button onclick="window.print()">Wochenliste drucken</button>
+  </div>
 
 </section>
 
@@ -343,6 +358,82 @@ let price = 3.90;
 let cutoff = nextThursday();
 
 let view = "parent";
+let staffAuthenticated = false;
+
+function setStaffAccess(allowed) {
+  staffAuthenticated = allowed;
+  document.getElementById("careLogin").hidden = allowed;
+  document.getElementById("staffTools").hidden = !allowed;
+  document.getElementById("menuUpload").hidden =
+    view !== "care" || !allowed;
+}
+
+async function verifyStaffUser(user) {
+  if (!user || !window.appSupabase) return false;
+
+  const { data, error } = await window.appSupabase
+    .from("staff_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return !error && data && data.role === "staff";
+}
+
+async function loginCare() {
+  const message = document.getElementById("authMessage");
+  const email = document.getElementById("careEmail").value.trim();
+  const password = document.getElementById("carePassword").value;
+
+  if (!window.appSupabase) {
+    message.textContent = "Die Verbindung zu Supabase ist noch nicht bereit.";
+    return;
+  }
+  if (!email || !password) {
+    message.textContent = "Bitte E-Mail-Adresse und Passwort eingeben.";
+    return;
+  }
+
+  message.textContent = "Anmeldung wird geprüft …";
+  const { data, error } = await window.appSupabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    message.textContent = "Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.";
+    return;
+  }
+
+  const allowed = await verifyStaffUser(data.user);
+  if (!allowed) {
+    await window.appSupabase.auth.signOut();
+    setStaffAccess(false);
+    message.textContent = "Dieser Benutzer ist nicht als Betreuung freigeschaltet.";
+    return;
+  }
+
+  setStaffAccess(true);
+  message.textContent = "Anmeldung erfolgreich.";
+}
+
+async function logoutCare() {
+  if (window.appSupabase) await window.appSupabase.auth.signOut();
+  setStaffAccess(false);
+  document.getElementById("carePassword").value = "";
+  document.getElementById("authMessage").textContent = "Du bist abgemeldet.";
+}
+
+async function restoreStaffSession() {
+  if (!window.appSupabase) return;
+  const { data } = await window.appSupabase.auth.getSession();
+  if (data.session && await verifyStaffUser(data.session.user)) {
+    setStaffAccess(true);
+    document.getElementById("authMessage").textContent = "Betreuung ist angemeldet.";
+  } else {
+    setStaffAccess(false);
+  }
+}
 
 function nextThursday() {
 
@@ -371,6 +462,7 @@ function isCancelled(child, day) {
 function init() {
 
   setupSupabaseStatus();
+  restoreStaffSession();
 
   const childSelect = document.getElementById("child");
 
@@ -494,7 +586,8 @@ function showView(which) {
 
   document.getElementById("careSection").hidden = which !== "care";
 
-  document.getElementById("menuUpload").hidden = which !== "care";
+  document.getElementById("menuUpload").hidden =
+    which !== "care" || !staffAuthenticated;
 
   document.getElementById("orderSection").hidden = which !== "parent";
 
