@@ -294,8 +294,26 @@ function setupSupabaseStatus() {
       SUPABASE_PUBLISHABLE_KEY
     );
 
-    status.textContent =
-      "Supabase-Bibliothek geladen; Client vorbereitet. Es wurden noch keine Daten übertragen und kein Datenbankzugriff geprüft.";
+    status.textContent = "Supabase-Client vorbereitet. Verbindung zur technischen Testtabelle wird geprüft …";
+
+    window.appSupabase
+      .from("test_verbindung")
+      .select("*")
+      .limit(1)
+      .then(({ error }) => {
+        if (error) {
+          status.textContent =
+            "Supabase-API erreichbar, aber die Testtabelle konnte nicht gelesen werden: " +
+            error.message;
+        } else {
+          status.textContent =
+            "Verbindung erfolgreich: Die technische Testtabelle ist erreichbar. Es wurden keine Kinder-, Familien- oder Bestelldaten gelesen oder verändert.";
+        }
+      })
+      .catch(() => {
+        status.textContent =
+          "Der Verbindungstest ist fehlgeschlagen. Bitte Internetverbindung und Supabase-Einstellungen prüfen.";
+      });
   } else {
     status.textContent =
       "Die Supabase-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen.";
