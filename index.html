@@ -415,6 +415,7 @@ async function loginCare() {
 
   setStaffAccess(true);
   message.textContent = "Anmeldung erfolgreich.";
+  await loadSettings();
 }
 
 async function logoutCare() {
@@ -430,6 +431,7 @@ async function restoreStaffSession() {
   if (data.session && await verifyStaffUser(data.session.user)) {
     setStaffAccess(true);
     document.getElementById("authMessage").textContent = "Betreuung ist angemeldet.";
+    await loadSettings();
   } else {
     setStaffAccess(false);
   }
@@ -597,26 +599,60 @@ function showView(which) {
 
 }
 
-function updatePrice() {
+async function loadSettings() {
+  const message = document.getElementById("priceMessage");
+  if (!window.appSupabase || !staffAuthenticated) return;
 
-  const v = Number(document.getElementById("price").value);
+  const { data, error } = await window.appSupabase
+    .from("app_settings")
+    .select("meal_price_cents, cutoff_weekday, cutoff_time")
+    .eq("id", 1)
+    .maybeSingle();
 
-  if (!Number.isFinite(v) || v < 0) {
-
-    document.getElementById("priceMessage").textContent = "Bitte einen gültigen Preis eingeben.";
-
+  if (error) {
+    message.textContent = "Einstellungen konnten nicht geladen werden: " + error.message;
     return;
-
+  }
+  if (!data) {
+    message.textContent = "In app_settings wurde kein Eintrag mit ID 1 gefunden.";
+    return;
   }
 
-  price = v;
+  price = Number(data.meal_price_cents) / 100;
+  document.getElementById("price").value = price.toFixed(2);
+  message.textContent = "Gespeicherter Preis aus Supabase geladen.";
+}
 
-  document.getElementById("priceMessage").textContent =
+async function updatePrice() {
+  const v = Number(document.getElementById("price").value);
+  const message = document.getElementById("priceMessage");
 
-    "Demo-Preis geändert. Eine echte historische Preisverwaltung ist noch nicht eingerichtet.";
+  if (!Number.isFinite(v) || v < 0) {
+    message.textContent = "Bitte einen gültigen Preis eingeben.";
+    return;
+  }
+  if (!window.appSupabase || !staffAuthenticated) {
+    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+    return;
+  }
 
+  message.textContent = "Preis wird gespeichert …";
+  const { error } = await window.appSupabase
+    .from("app_settings")
+    .update({
+      meal_price_cents: Math.round(v * 100),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", 1);
+
+  if (error) {
+    message.textContent = "Preis konnte nicht gespeichert werden: " + error.message;
+    return;
+  }
+
+  price = Math.round(v * 100) / 100;
+  message.textContent = "Neuer Preis wurde in Supabase gespeichert.";
   renderAll();
-
 }
 
 function saveCutoff() {
