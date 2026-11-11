@@ -639,22 +639,32 @@ async function updatePrice() {
   }
 
   message.textContent = "Preis wird gespeichert …";
-  const { error } = await window.appSupabase
+  const { data, error } = await window.appSupabase
     .from("app_settings")
     .update({
       meal_price_cents: Math.round(v * 100),
       updated_at: new Date().toISOString()
     })
-    .eq("id", 1);
+    .eq("id", 1)
+    .select("meal_price_cents")
+    .maybeSingle();
 
   if (error) {
     message.textContent = "Preis konnte nicht gespeichert werden: " + error.message;
     return;
   }
+  if (!data) {
+    message.textContent = "Es wurde kein Datensatz mit ID 1 geändert. Bitte app_settings prüfen.";
+    return;
+  }
+  if (Number(data.meal_price_cents) !== Math.round(v * 100)) {
+    message.textContent = "Supabase hat einen anderen Preis zurückgegeben: " + data.meal_price_cents + " Cent.";
+    return;
+  }
 
-  price = Math.round(v * 100) / 100;
+  price = Number(data.meal_price_cents) / 100;
   priceInput.value = price.toFixed(2).replace(".", ",");
-  message.textContent = "Neuer Preis wurde in Supabase gespeichert.";
+  message.textContent = "Preis in Supabase gespeichert und überprüft: " + price.toFixed(2).replace(".", ",") + " €.";
   renderAll();
 }
 
