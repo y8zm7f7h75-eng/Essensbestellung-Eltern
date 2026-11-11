@@ -239,7 +239,7 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <label for="price">Preis pro Essen (€)</label>
 
-  <input id="price" type="number" min="0" step="0.10" value="3.90">
+  <input id="price" type="text" inputmode="decimal" autocomplete="off" value="3,90" style="width: 110px;"> <span>€</span>
 
   <button onclick="updatePrice()">Preis für zukünftige Bestellungen ändern</button>
 
@@ -619,16 +619,18 @@ async function loadSettings() {
   }
 
   price = Number(data.meal_price_cents) / 100;
-  document.getElementById("price").value = price.toFixed(2);
+  document.getElementById("price").value = price.toFixed(2).replace(".", ",");
   message.textContent = "Gespeicherter Preis aus Supabase geladen.";
 }
 
 async function updatePrice() {
-  const v = Number(document.getElementById("price").value);
+  const priceInput = document.getElementById("price");
+  const rawValue = priceInput.value.trim().replace(",", ".");
+  const v = Number(rawValue);
   const message = document.getElementById("priceMessage");
 
-  if (!Number.isFinite(v) || v < 0) {
-    message.textContent = "Bitte einen gültigen Preis eingeben.";
+  if (rawValue === "" || !Number.isFinite(v) || v < 0) {
+    message.textContent = "Bitte einen gültigen Preis eingeben, zum Beispiel 4,20.";
     return;
   }
   if (!window.appSupabase || !staffAuthenticated) {
@@ -651,6 +653,7 @@ async function updatePrice() {
   }
 
   price = Math.round(v * 100) / 100;
+  priceInput.value = price.toFixed(2).replace(".", ",");
   message.textContent = "Neuer Preis wurde in Supabase gespeichert.";
   renderAll();
 }
