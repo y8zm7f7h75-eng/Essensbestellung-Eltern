@@ -552,7 +552,7 @@ async function saveChildAllergies() {
   }
 
   message.textContent = "Allergieangaben werden gespeichert …";
-  const { error } = await window.appSupabase.rpc("save_child_meal_variants", {
+  const { data, error } = await window.appSupabase.rpc("save_child_meal_variants", {
     p_child_id: childId,
     p_variant_ids: variantIds
   });
@@ -563,7 +563,9 @@ async function saveChildAllergies() {
   }
 
   childAllergyMap[childId] = variantIds;
-  message.textContent = "Allergieangaben wurden gespeichert. Die Betreuung erhält eine Änderungsmitteilung.";
+  message.textContent = data
+    ? "Allergieangaben wurden gespeichert. Die Betreuung wurde über die Änderung informiert."
+    : "Die Allergieangaben waren bereits so gespeichert. Es war keine Änderung nötig.";
   renderAllergySettings(childId);
 }
 
