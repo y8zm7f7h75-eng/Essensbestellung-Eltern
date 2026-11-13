@@ -216,6 +216,12 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <select id="child"></select>
 
+  <h3>Allergieessen für dieses Kind</h3>
+  <p class="note">Die Auswahl bleibt gespeichert und wird bei zukünftigen X-Bestellungen berücksichtigt.</p>
+  <div id="allergyOptions"></div>
+  <button id="saveAllergies" onclick="saveChildAllergies()">Allergieangaben speichern</button>
+  <p id="allergyMessage" class="note" role="status"></p>
+
   <p class="note">X = Essen bestellen · S = eigenes Essen</p>
 
   <div id="days"></div>
@@ -359,6 +365,8 @@ const demoChildren = [
 
 let children = demoChildren.slice();
 let parentAuthenticated = false;
+let mealVariants = [];
+let childAllergyMap = {};
 
 const weekdays = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
 
@@ -432,6 +440,7 @@ async function loadParentChildren(user) {
     allergy: ""
   }));
 
+  await loadParentAllergyData();
   fillChildSelects();
   setParentAccess(true);
 
@@ -444,6 +453,115 @@ async function loadParentChildren(user) {
   }
 
   return true;
+}
+
+async function loadParentAllergyData() {
+  mealVariants = [];
+  childAllergyMap = {};
+
+  if (!window.appSupabase || children.length === 0) return;
+
+  const { data: variants, error: variantsError } = await window.appSupabase
+    .from("meal_variants")
+    .select("id, name, code, sort_order")
+    .eq("active", true)
+    .order("sort_order");
+
+  if (variantsError) {
+    document.getElementById("allergyMessage").textContent =
+      "Allergievarianten konnten nicht geladen werden.";
+    return;
+  }
+  mealVariants = variants || [];
+
+  const childIds = children.map(c => c.id);
+  const { data: saved, error: savedError } = await window.appSupabase
+    .from("child_meal_variants")
+    .select("child_id, variant_id")
+    .in("child_id", childIds);
+
+  if (savedError) {
+    document.getElementById("allergyMessage").textContent =
+      "Gespeicherte Allergieangaben konnten nicht geladen werden.";
+    return;
+  }
+
+  (saved || []).forEach(row => {
+    if (!childAllergyMap[row.child_id]) childAllergyMap[row.child_id] = [];
+    childAllergyMap[row.child_id].push(Number(row.variant_id));
+  });
+}
+
+function renderAllergySettings(childId) {
+  const area = document.getElementById("allergyOptions");
+  const saveButton = document.getElementById("saveAllergies");
+  if (!area || !saveButton) return;
+
+  area.innerHTML = "";
+  const selectedIds = childAllergyMap[childId] || [];
+
+  if (!parentAuthenticated || !childId) {
+    area.textContent = "Bitte zuerst anmelden und ein Kind auswählen.";
+    saveButton.disabled = true;
+    return;
+  }
+
+  if (mealVariants.length === 0) {
+    area.textContent = "Es konnten keine aktiven Allergievarianten geladen werden.";
+    saveButton.disabled = true;
+    return;
+  }
+
+  mealVariants.forEach(variant => {
+    const label = document.createElement("label");
+    label.style.fontWeight = "normal";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = variant.id;
+    checkbox.checked = selectedIds.includes(Number(variant.id));
+    checkbox.style.marginRight = "8px";
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(variant.name + " (" + variant.code + ")"));
+    area.appendChild(label);
+  });
+
+  saveButton.disabled = false;
+}
+
+async function saveChildAllergies() {
+  const childId = document.getElementById("child").value;
+  const message = document.getElementById("allergyMessage");
+
+  if (!parentAuthenticated || !childId || !window.appSupabase) {
+    message.textContent = "Bitte zuerst als Elternteil anmelden.";
+    return;
+  }
+
+  const variantIds = Array.from(
+    document.querySelectorAll("#allergyOptions input[type='checkbox']:checked")
+  ).map(input => Number(input.value));
+
+  if (!confirm(
+    "Bitte prüfe die Allergieangaben sorgfältig. Sie gelten dauerhaft für zukünftige Essensbestellungen dieses Kindes. Sind die Angaben korrekt und aktuell?"
+  )) {
+    message.textContent = "Die Änderung wurde nicht gespeichert.";
+    return;
+  }
+
+  message.textContent = "Allergieangaben werden gespeichert …";
+  const { error } = await window.appSupabase.rpc("save_child_meal_variants", {
+    p_child_id: childId,
+    p_variant_ids: variantIds
+  });
+
+  if (error) {
+    message.textContent = "Speichern nicht möglich. Bitte Betreuung informieren.";
+    return;
+  }
+
+  childAllergyMap[childId] = variantIds;
+  message.textContent = "Allergieangaben wurden gespeichert. Die Betreuung erhält eine Änderungsmitteilung.";
+  renderAllergySettings(childId);
 }
 
 async function loginParent() {
@@ -664,19 +782,7 @@ function renderDays() {
 
   });
 
-  const c = children.find(x => x.id === child);
-
-  const allergy = document.createElement("p");
-
-  allergy.className = c && c.allergy ? "warning" : "note";
-
-  allergy.textContent = c && c.allergy
-
-    ? "WICHTIG – Sonderessen prüfen: " + c.allergy
-
-    : "Für dieses Beispielkind ist keine Allergieangabe hinterlegt.";
-
-  area.appendChild(allergy);
+  renderAllergySettings(child);
 
   document.getElementById("deadline").textContent =
 
