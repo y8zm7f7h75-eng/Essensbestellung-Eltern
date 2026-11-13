@@ -441,8 +441,8 @@ async function loadParentChildren(user) {
   }));
 
   await loadParentAllergyData();
-  fillChildSelects();
   setParentAccess(true);
+  fillChildSelects();
 
   if (children.length === 0) {
     document.getElementById("parentAuthMessage").textContent =
