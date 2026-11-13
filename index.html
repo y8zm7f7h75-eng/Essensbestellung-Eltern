@@ -256,6 +256,9 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <p class="note">Angemeldet als Betreuung.</p>
   <button onclick="logoutCare()">Abmelden</button>
 
+  <h3>Neue Allergieänderungen</h3>
+  <div id="allergyChanges" class="note">Änderungen werden geladen …</div>
+
   <label for="price">Preis pro Essen (€)</label>
 
   <input id="price" type="text" inputmode="decimal" autocomplete="off" value="3,90" style="width: 110px;"> <span>€</span>
@@ -656,6 +659,7 @@ async function loginCare() {
   setStaffAccess(true);
   message.textContent = "Anmeldung erfolgreich.";
   await loadSettings();
+  await loadAllergyChanges();
 }
 
 async function logoutCare() {
@@ -674,6 +678,7 @@ async function restoreStaffSession() {
     setParentAccess(false);
     document.getElementById("authMessage").textContent = "Betreuung ist angemeldet.";
     await loadSettings();
+    await loadAllergyChanges();
   } else {
     setStaffAccess(false);
     if (data.session) {
@@ -823,6 +828,69 @@ function showView(which) {
 
   renderAll();
 
+}
+
+async function loadAllergyChanges() {
+  const area = document.getElementById("allergyChanges");
+  if (!area || !window.appSupabase || !staffAuthenticated) return;
+
+  area.textContent = "Allergieänderungen werden geladen …";
+  const { data, error } = await window.appSupabase
+    .from("child_meal_variant_changes")
+    .select("id, old_variants, new_variants, created_at, seen_at, children(first_name, last_name)")
+    .is("seen_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    area.textContent = "Allergieänderungen konnten nicht geladen werden.";
+    return;
+  }
+
+  area.innerHTML = "";
+  if (!data || data.length === 0) {
+    area.textContent = "Keine ungelesenen Allergieänderungen.";
+    return;
+  }
+
+  data.forEach(change => {
+    const card = document.createElement("div");
+    card.style.borderBottom = "1px solid #e5ece9";
+    card.style.padding = "10px 0";
+
+    const child = change.children || {};
+    const name = [child.first_name, child.last_name].filter(Boolean).join(" ") || "Kind";
+    const heading = document.createElement("strong");
+    heading.textContent = name;
+    card.appendChild(heading);
+
+    const detail = document.createElement("p");
+    detail.textContent =
+      "Alt: " + (change.old_variants || []).map(v => v.code).join(", ") +
+      " → Neu: " + (change.new_variants || []).map(v => v.code).join(", ");
+    card.appendChild(detail);
+
+    const date = document.createElement("p");
+    date.textContent = new Date(change.created_at).toLocaleString("de-DE");
+    card.appendChild(date);
+
+    const button = document.createElement("button");
+    button.textContent = "Als gesehen markieren";
+    button.onclick = async () => {
+      button.disabled = true;
+      const { error: markError } = await window.appSupabase.rpc(
+        "mark_child_meal_variant_change_seen",
+        { p_change_id: change.id }
+      );
+      if (markError) {
+        button.disabled = false;
+        alert("Die Änderung konnte nicht markiert werden.");
+        return;
+      }
+      await loadAllergyChanges();
+    };
+    card.appendChild(button);
+    area.appendChild(card);
+  });
 }
 
 async function loadSettings() {
