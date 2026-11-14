@@ -1026,7 +1026,6 @@ async function loadCancellableOrders() {
   select.add(new Option("Bestellungen werden geladen …", ""));
   select.disabled = true;
   button.disabled = true;
-  message.textContent = "";
 
   const { data, error } = await window.appSupabase
     .from("meal_orders")
