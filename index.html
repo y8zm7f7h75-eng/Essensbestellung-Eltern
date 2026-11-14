@@ -275,25 +275,19 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <p id="cutoffMessage" class="note" role="status"></p>
 
-  <label for="cancelChild">Bestellung stornieren</label>
+  <label for="cancelOrder">Offene Essensbestellung auswählen</label>
 
-  <select id="cancelChild"></select>
-
-  <label for="cancelDay">Wochentag</label>
-
-  <select id="cancelDay">
-
-    <option>Montag</option><option>Dienstag</option>
-
-    <option>Mittwoch</option><option>Donnerstag</option>
-
-    <option>Freitag</option>
-
+  <select id="cancelOrder">
+    <option value="">Bestellungen werden geladen …</option>
   </select>
 
-  <button onclick="cancelMeal()">Essen stornieren</button>
+  <label for="cancellationReason">Stornierungsgrund (optional)</label>
+  <input id="cancellationReason" type="text" maxlength="300" placeholder="Zum Beispiel: Kind krank">
 
-  <p class="note">Eine Stornierung hier meldet sie nicht automatisch beim Lieferanten.</p>
+  <button id="cancelOrderButton" onclick="cancelMeal()">Essen stornieren</button>
+
+  <p id="cancellationMessage" class="note" role="status"></p>
+  <p class="note">Die Stornierung wird gespeichert. Die Benachrichtigung des Lieferanten erfolgt weiterhin separat.</p>
 
   <h2>Wochenliste</h2>
 
@@ -662,6 +656,7 @@ async function loginCare() {
   message.textContent = "Anmeldung erfolgreich.";
   await loadSettings();
   await loadAllergyChanges();
+  await loadCancellableOrders();
 }
 
 async function logoutCare() {
@@ -681,6 +676,7 @@ async function restoreStaffSession() {
     document.getElementById("authMessage").textContent = "Betreuung ist angemeldet.";
     await loadSettings();
     await loadAllergyChanges();
+    await loadCancellableOrders();
   } else {
     setStaffAccess(false);
     if (data.session) {
@@ -1012,32 +1008,99 @@ async function saveCutoff() {
 
 }
 
-function cancelMeal() {
+function localDateISO(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
+}
 
-  const child = document.getElementById("cancelChild").value;
+async function loadCancellableOrders() {
+  const select = document.getElementById("cancelOrder");
+  const message = document.getElementById("cancellationMessage");
+  const button = document.getElementById("cancelOrderButton");
 
-  const day = document.getElementById("cancelDay").value;
+  if (!select || !window.appSupabase || !staffAuthenticated) return;
 
-  if (selected(child, day) !== "X") {
+  select.innerHTML = "";
+  select.add(new Option("Bestellungen werden geladen …", ""));
+  select.disabled = true;
+  button.disabled = true;
+  message.textContent = "";
 
-    alert("Für dieses Kind ist an diesem Tag kein Essen bestellt.");
+  const { data, error } = await window.appSupabase
+    .from("meal_orders")
+    .select("id, meal_date, order_type, children(first_name, last_name)")
+    .eq("order_type", "meal")
+    .is("cancelled_at", null)
+    .gte("meal_date", localDateISO())
+    .order("meal_date", { ascending: true });
 
+  if (error) {
+    select.innerHTML = "";
+    select.add(new Option("Bestellungen konnten nicht geladen werden", ""));
+    message.textContent = "Bestellungen konnten nicht geladen werden: " + error.message;
     return;
-
   }
 
-  cancellations[key(child, day)] = {
+  select.innerHTML = "";
+  if (!data || data.length === 0) {
+    select.add(new Option("Keine offenen zukünftigen Essensbestellungen", ""));
+    message.textContent = "Aktuell gibt es keine stornierbaren zukünftigen Essensbestellungen.";
+    return;
+  }
 
-    date: new Date().toISOString(),
+  data.forEach(order => {
+    const child = order.children || {};
+    const childName = [child.first_name, child.last_name].filter(Boolean).join(" ") || "Kind";
+    const date = new Date(order.meal_date + "T12:00:00");
+    const label = childName + " – " + date.toLocaleDateString("de-DE");
+    select.add(new Option(label, order.id));
+  });
 
-    supplierNotified: false
+  select.disabled = false;
+  button.disabled = false;
+}
 
-  };
+async function cancelMeal() {
+  const select = document.getElementById("cancelOrder");
+  const reasonInput = document.getElementById("cancellationReason");
+  const message = document.getElementById("cancellationMessage");
+  const button = document.getElementById("cancelOrderButton");
+  const orderId = select.value;
 
-  renderAll();
+  if (!staffAuthenticated || !window.appSupabase) {
+    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+    return;
+  }
+  if (!orderId) {
+    message.textContent = "Bitte zuerst eine offene Essensbestellung auswählen.";
+    return;
+  }
 
-  alert("Demo-Stornierung erfasst. Der Lieferant wurde NICHT benachrichtigt.");
+  const selectedLabel = select.options[select.selectedIndex].text;
+  if (!confirm("Soll diese Bestellung wirklich storniert werden?\n\n" + selectedLabel +
+      "\n\nSie bleibt gespeichert und wird mit 0,00 € berechnet. Der Lieferant wird dadurch noch nicht benachrichtigt.")) {
+    return;
+  }
 
+  button.disabled = true;
+  message.textContent = "Stornierung wird gespeichert …";
+
+  const { error } = await window.appSupabase.rpc("cancel_meal_order", {
+    p_order_id: orderId,
+    p_cancellation_reason: reasonInput.value.trim() || null
+  });
+
+  if (error) {
+    message.textContent = "Stornierung fehlgeschlagen: " + error.message;
+    button.disabled = false;
+    return;
+  }
+
+  reasonInput.value = "";
+  message.textContent = "Bestellung wurde in Supabase storniert. Betrag: 0,00 €. Lieferant noch nicht benachrichtigt.";
+  await loadCancellableOrders();
 }
 
 function renderAll() {
