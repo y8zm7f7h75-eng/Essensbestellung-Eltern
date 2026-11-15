@@ -604,8 +604,9 @@ async function logoutParent() {
     "Du bist abgemeldet. Für die Bestellung bitte erneut anmelden.";
 }
 
+
 async function verifyStaffUser(user) {
-  if (!user || !window.appSupabase) return false;
+  if (!user || !window.appSupabase) return null;
 
   const { data, error } = await window.appSupabase
     .from("staff_members")
@@ -613,8 +614,15 @@ async function verifyStaffUser(user) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  return !error && data && data.role === "staff";
+  if (error || !data) return null;
+
+  if (data.role !== "staff" && data.role !== "admin") {
+    return null;
+  }
+
+  return data.role;
 }
+
 
 async function loginCare() {
   const message = document.getElementById("authMessage");
