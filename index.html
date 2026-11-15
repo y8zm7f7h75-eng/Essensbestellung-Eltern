@@ -377,9 +377,12 @@ let cutoff = nextThursday();
 
 let view = "parent";
 let staffAuthenticated = false;
+let staffRole = null;
 
-function setStaffAccess(allowed) {
+function setStaffAccess(allowed, role = null) {
   staffAuthenticated = allowed;
+  staffRole = allowed ? role : null;
+
   document.getElementById("careLogin").hidden = allowed;
   document.getElementById("staffTools").hidden = !allowed;
   document.getElementById("menuUpload").hidden =
@@ -649,16 +652,20 @@ async function loginCare() {
     return;
   }
 
-  const allowed = await verifyStaffUser(data.user);
-  if (!allowed) {
+  const role = await verifyStaffUser(data.user);
+
+  if (!role) {
     await window.appSupabase.auth.signOut();
     setStaffAccess(false);
     message.textContent = "Dieser Benutzer ist nicht als Betreuung freigeschaltet.";
     return;
   }
 
-  setStaffAccess(true);
-  message.textContent = "Anmeldung erfolgreich.";
+  setStaffAccess(true, role);
+  message.textContent = role === "admin"
+    ? "Anmeldung erfolgreich. Du bist als Admin angemeldet."
+    : "Anmeldung erfolgreich. Du bist als Betreuung angemeldet.";
+
   await loadSettings();
   await loadAllergyChanges();
   await loadCancellableOrders();
@@ -673,23 +680,36 @@ async function logoutCare() {
 
 async function restoreStaffSession() {
   if (!window.appSupabase) return;
+
   const { data } = await window.appSupabase.auth.getSession();
 
-  if (data.session && await verifyStaffUser(data.session.user)) {
-    setStaffAccess(true);
-    setParentAccess(false);
-    document.getElementById("authMessage").textContent = "Betreuung ist angemeldet.";
-    await loadSettings();
-    await loadAllergyChanges();
-    await loadCancellableOrders();
-  } else {
+  if (data.session) {
+    const role = await verifyStaffUser(data.session.user);
+
+    if (role) {
+      setStaffAccess(true, role);
+      setParentAccess(false);
+
+      document.getElementById("authMessage").textContent =
+        role === "admin"
+          ? "Admin ist angemeldet."
+          : "Betreuung ist angemeldet.";
+
+      await loadSettings();
+      await loadAllergyChanges();
+      await loadCancellableOrders();
+      return;
+    }
+
     setStaffAccess(false);
-    if (data.session) {
-      const parentAllowed = await loadParentChildren(data.session.user);
-      if (!parentAllowed) setParentAccess(false);
-    } else {
+    const parentAllowed = await loadParentChildren(data.session.user);
+
+    if (!parentAllowed) {
       setParentAccess(false);
     }
+  } else {
+    setStaffAccess(false);
+    setParentAccess(false);
   }
 }
 
