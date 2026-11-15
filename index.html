@@ -394,13 +394,10 @@ function setParentAccess(allowed) {
 
 function fillChildSelects() {
   const childSelect = document.getElementById("child");
-  const cancelSelect = document.getElementById("cancelChild");
   childSelect.innerHTML = "";
-  cancelSelect.innerHTML = "";
 
   children.forEach(c => {
     childSelect.add(new Option(c.name, c.id));
-    cancelSelect.add(new Option(c.name, c.id));
   });
 
   renderDays();
