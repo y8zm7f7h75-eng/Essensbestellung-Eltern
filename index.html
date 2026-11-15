@@ -258,7 +258,7 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <h3>Neue Allergieänderungen</h3>
   <div id="allergyChanges" class="note">Änderungen werden geladen …</div>
-
+<div id="adminSettings" hidden>
   <label for="price">Preis pro Essen (€)</label>
 
   <input id="price" type="text" inputmode="decimal" autocomplete="off" value="3,90" style="width: 110px;"> <span>€</span>
@@ -274,6 +274,7 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <button onclick="saveCutoff()">Bestellschluss festlegen</button>
 
   <p id="cutoffMessage" class="note" role="status"></p>
+</div>
 
   <label for="cancelOrder">Offene Essensbestellung auswählen</label>
 
@@ -382,6 +383,7 @@ let staffRole = null;
 function setStaffAccess(allowed, role = null) {
   staffAuthenticated = allowed;
   staffRole = allowed ? role : null;
+  document.getElementById("adminSettings").hidden = !allowed || role !== "admin";
 
   document.getElementById("careLogin").hidden = allowed;
   document.getElementById("staffTools").hidden = !allowed;
@@ -965,8 +967,8 @@ async function updatePrice() {
     message.textContent = "Bitte einen gültigen Preis eingeben, zum Beispiel 4,20.";
     return;
   }
-  if (!window.appSupabase || !staffAuthenticated) {
-    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+  if (!window.appSupabase || !staffAuthenticated || staffRole !== "admin") {
+    message.textContent = "Nur ein angemeldeter Admin darf den Preis ändern.";
     return;
   }
   if (cents === Math.round(price * 100)) {
@@ -1005,8 +1007,8 @@ async function saveCutoff() {
     return;
   }
 
-  if (!window.appSupabase || !staffAuthenticated) {
-    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+  if (!window.appSupabase || !staffAuthenticated || staffRole !== "admin") {
+    message.textContent = "Nur ein angemeldeter Admin darf den Bestellschluss ändern.";
     return;
   }
 
