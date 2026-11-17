@@ -180,17 +180,47 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   </div>
 
-  <div id="menuUpload" hidden>
 
-    <label for="menuFile">Menüplan als Bild auswählen</label>
 
-    <input type="file" id="menuFile" accept="image/*">
+<div id="menuUpload" hidden>
 
-    <p class="note">Das Bild wird nur in dieser Browseransicht gezeigt.</p>
+  <h3>Menüplan für eine Woche hochladen</h3>
 
-  </div>
+  <label for="menuWeekStart">Montag der Kalenderwoche</label>
 
-  <img id="menuPreview" alt="Vorschau des Menüplans" hidden>
+  <input type="date" id="menuWeekStart">
+
+  <label for="menuReleaseAt">Zeitpunkt der Elternfreigabe</label>
+
+  <input type="datetime-local" id="menuReleaseAt">
+
+  <label for="menuCutoffAt">Bestellschluss</label>
+
+  <input type="datetime-local" id="menuCutoffAt">
+
+  <label for="menuZipFile">Speiseplan-Datei (ZIP)</label>
+
+  <input type="file" id="menuZipFile" accept=".zip,application/zip">
+
+  <label for="menuPdfFile">Menüplan für Eltern (PDF)</label>
+
+  <input type="file" id="menuPdfFile" accept=".pdf,application/pdf">
+
+  <button type="button" id="uploadMenuPlanButton">
+
+    Menüplan hochladen
+
+  </button>
+
+  <p id="menuUploadMessage" class="note">
+
+    Bitte eine Kalenderwoche und beide Dateien auswählen.
+
+  </p>
+
+</div>
+
+  
 
 </section>
 
@@ -1203,24 +1233,9 @@ function renderAll() {
 
 }
 
-document.getElementById("menuFile").addEventListener("change", event => {
-
-  const file = event.target.files[0];
-
-  if (!file) return;
-
-  const url = URL.createObjectURL(file);
-
-  const img = document.getElementById("menuPreview");
-
-  img.src = url;
-
-  img.hidden = false;
-
-  document.getElementById("menuArea").textContent =
-
-    "Menüplan in dieser Browseransicht ausgewählt.";
-
+document.getElementById("uploadMenuPlanButton").addEventListener("click", () => {
+  document.getElementById("menuUploadMessage").textContent =
+    "Die Upload-Funktion wird im nächsten Schritt eingerichtet.";
 });
 
 init();
