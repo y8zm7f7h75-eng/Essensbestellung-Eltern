@@ -1232,6 +1232,75 @@ function renderAll() {
       { style: "currency", currency: "EUR" });
 
 }
+  
+async function loadAvailableMenuPlan() {
+  const area = document.getElementById("menuArea");
+
+  if (!window.appSupabase ||
+      (!parentAuthenticated && !staffAuthenticated)) {
+    area.textContent = "Bitte zuerst anmelden.";
+    return;
+  }
+
+  area.textContent = "Menüplan wird geladen ...";
+
+  const { data: weeks, error } = await window.appSupabase
+    .from("meal_plan_weeks")
+    .select("week_start, flyer_object_path")
+    .eq("status", "released")
+    .order("week_start", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    area.textContent =
+      "Der Menüplan konnte nicht geladen werden: " + error.message;
+    return;
+  }
+
+  if (!weeks || weeks.length === 0) {
+    area.textContent =
+      "Aktuell ist noch kein Menüplan freigegeben.";
+    return;
+  }
+
+  const week = weeks[0];
+
+  const { data: file, error: fileError } =
+    await window.appSupabase.storage
+      .from("speiseplaene")
+      .createSignedUrl(week.flyer_object_path, 3600);
+
+  if (fileError || !file) {
+    area.textContent =
+      "Die PDF-Datei konnte nicht geöffnet werden.";
+    return;
+  }
+
+  area.innerHTML = "";
+
+  const heading = document.createElement("p");
+  heading.textContent =
+    "Menüplan ab " +
+    new Date(week.week_start + "T12:00:00")
+      .toLocaleDateString("de-DE");
+
+  const link = document.createElement("a");
+  link.href = file.signedUrl;
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.textContent = "Menüplan als PDF öffnen";
+
+  const pdf = document.createElement("iframe");
+  pdf.src = file.signedUrl;
+  pdf.title = "Menüplan";
+  pdf.width = "100%";
+  pdf.height = "600";
+
+  area.appendChild(heading);
+  area.appendChild(link);
+  area.appendChild(pdf);
+}
+
 function validateMenuPlanUpload() {
   const weekStart = document.getElementById("menuWeekStart").value;
   const releaseAt = document.getElementById("menuReleaseAt").value;
