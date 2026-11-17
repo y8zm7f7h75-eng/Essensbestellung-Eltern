@@ -419,12 +419,34 @@ function setStaffAccess(allowed, role = null) {
   document.getElementById("staffTools").hidden = !allowed;
   document.getElementById("menuUpload").hidden =
     view !== "care" || !allowed;
+  if (allowed) {
+    loadAvailableMenuPlan();
+  }
+}
+
+function setStaffAccess(allowed, role = null) {
+  staffAuthenticated = allowed;
+  staffRole = allowed ? role : null;
+  document.getElementById("adminSettings").hidden = !allowed || role !== "admin";
+
+  document.getElementById("careLogin").hidden = allowed;
+  document.getElementById("staffTools").hidden = !allowed;
+  document.getElementById("menuUpload").hidden =
+    view !== "care" || !allowed;
+
+  if (allowed) {
+    loadAvailableMenuPlan();
+  }
 }
 
 function setParentAccess(allowed) {
   parentAuthenticated = allowed;
   document.getElementById("parentLogin").hidden = allowed;
   document.getElementById("parentTools").hidden = !allowed;
+
+  if (allowed) {
+    loadAvailableMenuPlan();
+  }
 }
 
 function fillChildSelects() {
