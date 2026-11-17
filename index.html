@@ -1286,11 +1286,126 @@ function validateMenuPlanUpload() {
 
   return true;
 }
-document.getElementById("uploadMenuPlanButton").addEventListener("click", () => {
+  async function uploadMenuPlanFiles(weekStart, zipFile, pdfFile) {
+  const supabase = window.appSupabase;
+
+  const zipPath = `${weekStart}/speiseplan.zip`;
+  const pdfPath = `${weekStart}/menueplan.pdf`;
+
+  const zipResult = await supabase.storage
+    .from("speiseplaene")
+    .upload(zipPath, zipFile, {
+      upsert: true,
+      contentType: "application/zip"
+    });
+
+  if (zipResult.error) {
+    throw new Error("ZIP-Upload fehlgeschlagen: " + zipResult.error.message);
+  }
+
+  const pdfResult = await supabase.storage
+    .from("speiseplaene")
+    .upload(pdfPath, pdfFile, {
+      upsert: true,
+      contentType: "application/pdf"
+    });
+
+  if (pdfResult.error) {
+    throw new Error("PDF-Upload fehlgeschlagen: " + pdfResult.error.message);
+  }
+
+  return {
+    zipPath,
+    pdfPath
+  };
+}
+  async function saveMenuPlanUpload() {
+  const message = document.getElementById("menuUploadMessage");
+  const weekStart = document.getElementById("menuWeekStart").value;
+  const releaseAt = new Date(
+    document.getElementById("menuReleaseAt").value
+  ).toISOString();
+  const cutoffAt = new Date(
+    document.getElementById("menuCutoffAt").value
+  ).toISOString();
+  const zipFile = document.getElementById("menuZipFile").files[0];
+  const pdfFile = document.getElementById("menuPdfFile").files[0];
+
+  const supabase = window.appSupabase;
+
+  message.textContent = "Kalenderwoche wird geprüft …";
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("meal_plan_weeks")
+    .select("week_start, status, release_at, order_cutoff_at, zip_object_path, flyer_object_path")
+    .eq("week_start", weekStart)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw new Error("Kalenderwoche konnte nicht geprüft werden: " + lookupError.message);
+  }
+
+  if (existing && existing.status !== "draft") {
+    throw new Error("Für diese Woche gibt es bereits einen vorbereiteten oder freigegebenen Menüplan. Bitte nicht überschreiben.");
+  }
+
+  if (existing &&
+      (new Date(existing.release_at).getTime() !== new Date(releaseAt).getTime() ||
+       new Date(existing.order_cutoff_at).getTime() !== new Date(cutoffAt).getTime())) {
+    throw new Error("Für diese Woche existiert bereits ein Entwurf mit anderen Zeitangaben. Bitte Betreuung/Admin fragen.");
+  }
+
+  if (!existing) {
+    const { error: prepareError } = await supabase.rpc(
+      "prepare_meal_plan_week",
+      {
+        p_week_start: weekStart,
+        p_release_at: releaseAt,
+        p_order_cutoff_at: cutoffAt
+      }
+    );
+
+    if (prepareError) {
+      throw new Error("Kalenderwoche konnte nicht angelegt werden: " + prepareError.message);
+    }
+  }
+
+  message.textContent = "Dateien werden in den privaten Speicher hochgeladen …";
+
+  const paths = await uploadMenuPlanFiles(weekStart, zipFile, pdfFile);
+
+  message.textContent = "Dateien sind hochgeladen. Kalenderwoche wird vorbereitet …";
+
+  const { error: filesError } = await supabase.rpc(
+    "set_meal_plan_week_files",
+    {
+      p_week_start: weekStart,
+      p_zip_object_path: paths.zipPath,
+      p_flyer_object_path: paths.pdfPath
+    }
+  );
+
+  if (filesError) {
+    throw new Error("Dateien sind hochgeladen, aber die Kalenderwoche konnte nicht vorbereitet werden: " + filesError.message);
+  }
+
+  message.textContent =
+    "Menüplan und Speiseplandatei wurden hochgeladen. Die Freigabe erfolgt zum eingestellten Zeitpunkt.";
+}
+document.getElementById("uploadMenuPlanButton").addEventListener("click", async () => {
   if (!validateMenuPlanUpload()) return;
 
-  document.getElementById("menuUploadMessage").textContent =
-    "Alle Angaben sind gültig. Der Datei-Upload wird im nächsten Schritt ergänzt.";
+  const button = document.getElementById("uploadMenuPlanButton");
+  button.disabled = true;
+
+  try {
+    await saveMenuPlanUpload();
+  } catch (error) {
+    document.getElementById("menuUploadMessage").textContent =
+      "Fehler: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
 });
 
 init();
