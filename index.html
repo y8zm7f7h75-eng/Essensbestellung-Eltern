@@ -1232,7 +1232,60 @@ function renderAll() {
       { style: "currency", currency: "EUR" });
 
 }
+function validateMenuPlanUpload() {
+  const weekStart = document.getElementById("menuWeekStart").value;
+  const releaseAt = document.getElementById("menuReleaseAt").value;
+  const cutoffAt = document.getElementById("menuCutoffAt").value;
+  const zipFile = document.getElementById("menuZipFile").files[0];
+  const pdfFile = document.getElementById("menuPdfFile").files[0];
+  const message = document.getElementById("menuUploadMessage");
 
+  if (!staffAuthenticated || !["staff", "admin"].includes(staffRole)) {
+    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+    return false;
+  }
+
+  if (!weekStart || !releaseAt || !cutoffAt || !zipFile || !pdfFile) {
+    message.textContent = "Bitte alle Felder ausfüllen und beide Dateien auswählen.";
+    return false;
+  }
+
+  const monday = new Date(weekStart + "T12:00:00");
+
+  if (monday.getDay() !== 1) {
+    message.textContent = "Bitte als Wochenbeginn einen Montag auswählen.";
+    return false;
+  }
+
+  const today = new Date();
+  const currentMonday = new Date(today);
+  currentMonday.setDate(today.getDate() - (today.getDay() + 6) % 7);
+
+  if (monday <= currentMonday) {
+    message.textContent = "Bitte eine zukünftige Kalenderwoche auswählen.";
+    return false;
+  }
+
+  const release = new Date(releaseAt);
+  const cutoffDate = new Date(cutoffAt);
+
+  if (Number.isNaN(release.getTime()) ||
+      Number.isNaN(cutoffDate.getTime()) ||
+      release <= new Date() ||
+      cutoffDate <= release) {
+    message.textContent =
+      "Die Elternfreigabe muss in der Zukunft liegen und vor dem Bestellschluss stattfinden.";
+    return false;
+  }
+
+  if (!zipFile.name.toLowerCase().endsWith(".zip") ||
+      !pdfFile.name.toLowerCase().endsWith(".pdf")) {
+    message.textContent = "Bitte eine ZIP-Datei und eine PDF-Datei auswählen.";
+    return false;
+  }
+
+  return true;
+}
 document.getElementById("uploadMenuPlanButton").addEventListener("click", () => {
   document.getElementById("menuUploadMessage").textContent =
     "Die Upload-Funktion wird im nächsten Schritt eingerichtet.";
