@@ -288,6 +288,37 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <h3>Neue Allergieänderungen</h3>
   <div id="allergyChanges" class="note">Änderungen werden geladen …</div>
+    <hr>
+
+<h3>Lieferantenbestellung</h3>
+
+<p>
+
+  Hier kann die Betreuung die Wochenbestellung vorbereiten
+
+  und vor dem Versand kontrollieren.
+
+</p>
+
+<label for="supplierWeekStart">Montag der Essenswoche</label>
+
+<input type="date" id="supplierWeekStart">
+
+<button
+
+  id="prepareSupplierOrderButton"
+
+  onclick="prepareSupplierOrder()"
+
+>
+
+  Lieferantenbestellung vorbereiten
+
+</button>
+
+<p id="supplierOrderMessage" class="note" role="status"></p>
+
+<div id="supplierOrderPreview"></div>
 <div id="adminSettings" hidden>
   <label for="price">Preis pro Essen (€)</label>
 
