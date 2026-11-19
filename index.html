@@ -1310,6 +1310,60 @@ async function loadAvailableMenuPlan() {
   area.appendChild(pdf);
 }
 
+function calculateMenuPlanTimes() {
+  const weekValue = document.getElementById("menuWeekStart").value;
+  const releaseField = document.getElementById("menuReleaseAt");
+  const cutoffField = document.getElementById("menuCutoffAt");
+
+  releaseField.value = "";
+  cutoffField.value = "";
+
+  if (!weekValue) return;
+
+  const parts = weekValue.split("-").map(Number);
+  const monday = new Date(
+    parts[0],
+    parts[1] - 1,
+    parts[2],
+    12
+  );
+
+  if (monday.getDay() !== 1) {
+    document.getElementById("menuUploadMessage").textContent =
+      "Bitte einen Montag als Wochenbeginn auswählen.";
+    return;
+  }
+
+  const release = new Date(monday);
+  release.setDate(release.getDate() - 10);
+  release.setHours(10, 0, 0, 0);
+
+  const cutoff = new Date(monday);
+  cutoff.setDate(cutoff.getDate() - 4);
+  cutoff.setHours(12, 30, 0, 0);
+
+  function formatLocalDateTime(date) {
+    const pad = value => String(value).padStart(2, "0");
+
+    return date.getFullYear() + "-" +
+      pad(date.getMonth() + 1) + "-" +
+      pad(date.getDate()) + "T" +
+      pad(date.getHours()) + ":" +
+      pad(date.getMinutes());
+  }
+
+  releaseField.value = formatLocalDateTime(release);
+  cutoffField.value = formatLocalDateTime(cutoff);
+
+  document.getElementById("menuUploadMessage").textContent =
+    "Freigabe und Bestellschluss wurden automatisch berechnet.";
+}
+
+document.getElementById("menuWeekStart").addEventListener(
+  "change",
+  calculateMenuPlanTimes
+);
+
 function validateMenuPlanUpload() {
   const weekStart = document.getElementById("menuWeekStart").value;
   const releaseAt = document.getElementById("menuReleaseAt").value;
