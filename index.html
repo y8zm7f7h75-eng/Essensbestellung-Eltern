@@ -1482,6 +1482,155 @@ function validateMenuPlanUpload() {
     pdfPath
   };
 }
+  
+async function prepareSupplierOrder() {
+  const weekInput = document.getElementById("supplierWeekStart");
+  const message = document.getElementById("supplierOrderMessage");
+  const preview = document.getElementById("supplierOrderPreview");
+  const button = document.getElementById("prepareSupplierOrderButton");
+
+  const weekStart = weekInput.value;
+
+  if (!staffAuthenticated || !["staff", "admin"].includes(staffRole)) {
+    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+    return;
+  }
+
+  if (!window.appSupabase) {
+    message.textContent = "Keine Verbindung zur Datenbank.";
+    return;
+  }
+
+  if (!weekStart) {
+    message.textContent = "Bitte zuerst den Montag der Essenswoche auswählen.";
+    return;
+  }
+
+  const selectedDate = new Date(weekStart + "T12:00:00");
+
+  if (selectedDate.getDay() !== 1) {
+    message.textContent = "Bitte einen Montag auswählen.";
+    return;
+  }
+
+  button.disabled = true;
+  preview.innerHTML = "";
+  message.textContent = "Lieferantenbestellung wird vorbereitet …";
+
+  try {
+    const { data: orderId, error: prepareError } =
+      await window.appSupabase.rpc(
+        "prepare_supplier_weekly_order_for_staff",
+        { p_week_start: weekStart }
+      );
+
+    if (prepareError) {
+      throw new Error(prepareError.message);
+    }
+
+    if (!orderId) {
+      throw new Error("Die Datenbank hat keine Bestell-ID zurückgegeben.");
+    }
+
+    const { data: order, error: loadError } =
+      await window.appSupabase
+        .from("supplier_weekly_orders")
+        .select("status, order_snapshot")
+        .eq("id", orderId)
+        .single();
+
+    if (loadError) {
+      throw new Error(loadError.message);
+    }
+
+    if (!order || !order.order_snapshot) {
+      throw new Error("Die gespeicherte Wochenübersicht ist leer.");
+    }
+
+    const days = order.order_snapshot.days;
+
+    if (!Array.isArray(days) || days.length !== 5) {
+      throw new Error("Die Wochenübersicht enthält nicht fünf Essenstage.");
+    }
+
+    const heading = document.createElement("h4");
+    heading.textContent = "Lieferantenbestellung – Vorschau";
+    preview.appendChild(heading);
+
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+
+    ["Datum / Wochentag", "Anzahl Essen normal"].forEach(label => {
+      const th = document.createElement("th");
+      th.textContent = label;
+      headerRow.appendChild(th);
+    });
+
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    days.forEach(day => {
+      const row = document.createElement("tr");
+
+      const dateCell = document.createElement("td");
+      const date = new Date(day.date + "T12:00:00Z");
+
+      dateCell.textContent =
+        date.toLocaleDateString("de-DE") + " – " + day.weekday;
+
+      const countCell = document.createElement("td");
+      countCell.textContent = day.orderable
+        ? String(day.normal_meal_count ?? 0)
+        : "—";
+
+      row.appendChild(dateCell);
+      row.appendChild(countCell);
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    preview.appendChild(table);
+
+    const allergyHeading = document.createElement("h4");
+    allergyHeading.textContent = "Allergieanforderungen";
+    preview.appendChild(allergyHeading);
+
+    let allergyFound = false;
+
+    days.forEach(day => {
+      if (!day.orderable || !Array.isArray(day.allergies)) return;
+
+      day.allergies.forEach(allergy => {
+        allergyFound = true;
+
+        const line = document.createElement("p");
+        line.textContent =
+          day.weekday + ": " +
+          allergy.count + " × " + allergy.name;
+
+        preview.appendChild(line);
+      });
+    });
+
+    if (!allergyFound) {
+      const empty = document.createElement("p");
+      empty.textContent = "Keine Allergieanforderungen für diese Woche.";
+      preview.appendChild(empty);
+    }
+
+    message.textContent =
+      "Vorschau erfolgreich erstellt. Es wurde keine E-Mail versendet.";
+  } catch (error) {
+    message.textContent =
+      "Fehler beim Erstellen der Vorschau: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
   async function saveMenuPlanUpload() {
   const message = document.getElementById("menuUploadMessage");
   const weekStart = document.getElementById("menuWeekStart").value;
