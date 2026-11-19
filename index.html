@@ -152,6 +152,8 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
 <main>
 
+
+
 <section>
 
   <h2>Ansicht wählen</h2>
@@ -165,6 +167,42 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   </div>
 
   <p class="note">Demo ohne Anmeldung. Noch keine echten Daten eingeben!</p>
+
+  <div id="parentLogin">
+
+    <h3>Anmeldung Eltern</h3>
+
+    <label for="parentEmail">E-Mail-Adresse</label>
+
+    <input id="parentEmail" type="email" autocomplete="username" placeholder="Test-E-Mail-Adresse">
+
+    <label for="parentPassword">Passwort</label>
+
+    <input id="parentPassword" type="password" autocomplete="current-password" placeholder="Passwort">
+
+    <button onclick="loginParent()">Anmelden</button>
+
+    <p id="parentAuthMessage" class="note" role="status">Bitte mit einem freigeschalteten Eltern-Testkonto anmelden.</p>
+
+  </div>
+
+  <div id="careLogin" hidden>
+
+    <h3>Anmeldung Betreuung</h3>
+
+    <label for="careEmail">E-Mail-Adresse</label>
+
+    <input id="careEmail" type="email" autocomplete="username" placeholder="Test-E-Mail-Adresse">
+
+    <label for="carePassword">Passwort</label>
+
+    <input id="carePassword" type="password" autocomplete="current-password" placeholder="Passwort">
+
+    <button onclick="loginCare()">Anmelden</button>
+
+    <p id="authMessage" class="note" role="status">Bitte mit dem angelegten Betreuungs-Testbenutzer anmelden.</p>
+
+  </div>
 
 </section>
 
@@ -228,15 +266,6 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <h2>Bestellung für nächste Woche</h2>
 
-  <div id="parentLogin">
-    <h3>Anmeldung Eltern</h3>
-    <label for="parentEmail">E-Mail-Adresse</label>
-    <input id="parentEmail" type="email" autocomplete="username" placeholder="Test-E-Mail-Adresse">
-    <label for="parentPassword">Passwort</label>
-    <input id="parentPassword" type="password" autocomplete="current-password" placeholder="Passwort">
-    <button onclick="loginParent()">Anmelden</button>
-    <p id="parentAuthMessage" class="note" role="status">Bitte mit einem freigeschalteten Eltern-Testkonto anmelden.</p>
-  </div>
 
   <div id="parentTools" hidden>
     <p class="note">Angemeldet. Angezeigt werden nur Kinder deiner Familie.</p>
@@ -272,15 +301,6 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <h3>Supabase-Verbindung</h3>
   <p id="connectionStatus" class="note" role="status">Verbindung wird vorbereitet …</p>
 
-  <div id="careLogin">
-    <h3>Anmeldung Betreuung</h3>
-    <label for="careEmail">E-Mail-Adresse</label>
-    <input id="careEmail" type="email" autocomplete="username" placeholder="Test-E-Mail-Adresse">
-    <label for="carePassword">Passwort</label>
-    <input id="carePassword" type="password" autocomplete="current-password" placeholder="Passwort">
-    <button onclick="loginCare()">Anmelden</button>
-    <p id="authMessage" class="note" role="status">Bitte mit dem angelegten Betreuungs-Testbenutzer anmelden.</p>
-  </div>
 
   <div id="staffTools" hidden>
   <p class="note">Angemeldet als Betreuung.</p>
@@ -904,6 +924,7 @@ function saveOrder() {
 
 }
 
+
 function showView(which) {
 
   view = which;
@@ -914,16 +935,23 @@ function showView(which) {
 
   document.getElementById("careSection").hidden = which !== "care";
 
+  document.getElementById("orderSection").hidden = which !== "parent";
+
+  document.getElementById("parentLogin").hidden =
+    parentAuthenticated || which !== "parent";
+
+  document.getElementById("careLogin").hidden =
+    staffAuthenticated || which !== "care";
+
   document.getElementById("menuUpload").hidden =
     which !== "care" || !staffAuthenticated;
-
-  document.getElementById("orderSection").hidden = which !== "parent";
 
   renderDays();
 
   renderAll();
 
 }
+
 
 async function loadAllergyChanges() {
   const area = document.getElementById("allergyChanges");
