@@ -206,54 +206,74 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
 </section>
 
-<section>
 
-  <h2>Menüplan</h2>
 
-  <p>Hier können Eltern den Menüplan ansehen.</p>
 
-  <div id="menuArea">
 
-    <p class="note">Noch kein Menüplan für den Test hochgeladen.</p>
+<section id="parentSection">
+
+  <div class="tabs">
+
+    <button id="parentOrderTab" class="active" onclick="showParentTab('order')">Bestellen</button>
+
+    <button id="parentBillingTab" onclick="showParentTab('billing')">Abrechnung</button>
 
   </div>
 
+  <div id="parentOrderView">
 
+    <h2>Menüplan der Woche</h2>
 
+    <p>Hier siehst du, was es in der Essenswoche gibt.</p>
 
+    <div id="menuArea">
 
-  
+      <p class="note">Noch kein Menüplan für den Test hochgeladen.</p>
 
-</section>
+    </div>
 
-<section id="orderSection">
+    <h2>Bestellung für nächste Woche</h2>
 
-  <h2>Bestellung für nächste Woche</h2>
+    <div id="parentTools" hidden>
 
+      <p class="note">Angemeldet. Angezeigt werden nur Kinder deiner Familie.</p>
 
-  <div id="parentTools" hidden>
-    <p class="note">Angemeldet. Angezeigt werden nur Kinder deiner Familie.</p>
-    <button onclick="logoutParent()">Abmelden</button>
+      <button onclick="logoutParent()">Abmelden</button>
 
-    <label for="child">Kind auswählen</label>
+      <label for="child">Kind auswählen</label>
 
-  <select id="child"></select>
+      <select id="child"></select>
 
-  <h3>Allergieessen für dieses Kind</h3>
-  <p class="note">Die Auswahl bleibt gespeichert und wird bei zukünftigen X-Bestellungen berücksichtigt.</p>
-  <div id="allergyOptions"></div>
-  <button id="saveAllergies" onclick="saveChildAllergies()">Allergieangaben speichern</button>
-  <p id="allergyMessage" class="note" role="status"></p>
+      <h3>Allergieessen für dieses Kind</h3>
 
-  <p class="note">X = Essen bestellen · S = eigenes Essen</p>
+      <p class="note">Die Auswahl bleibt gespeichert und wird bei zukünftigen X-Bestellungen berücksichtigt.</p>
 
-  <div id="days"></div>
+      <div id="allergyOptions"></div>
 
-  <p id="deadline" class="note"></p>
+      <button id="saveAllergies" onclick="saveChildAllergies()">Allergieangaben speichern</button>
 
-  <button id="saveOrder" onclick="saveOrder()">Auswahl speichern</button>
+      <p id="allergyMessage" class="note" role="status"></p>
 
-    <p id="saveMessage" role="status"></p>
+      <p class="note">X = Essen bestellen · S = eigenes Essen</p>
+
+      <div id="days"></div>
+
+      <p id="deadline" class="note"></p>
+
+      <button id="saveOrder" onclick="saveOrder()">Auswahl speichern</button>
+
+      <p id="saveMessage" role="status"></p>
+
+    </div>
+
+  </div>
+
+  <div id="parentBillingView" hidden>
+
+    <h2>Abrechnung</h2>
+
+    <p>Hier erscheint später die monatliche Abrechnung deiner Kinder.</p>
+
   </div>
 
 </section>
@@ -925,17 +945,16 @@ function saveOrder() {
 }
 
 
+
 function showView(which) {
 
   view = which;
 
   document.getElementById("parentTab").classList.toggle("active", which === "parent");
-
   document.getElementById("careTab").classList.toggle("active", which === "care");
 
   document.getElementById("careSection").hidden = which !== "care";
-
-  document.getElementById("orderSection").hidden = which !== "parent";
+  document.getElementById("parentSection").hidden = which !== "parent";
 
   document.getElementById("parentLogin").hidden =
     parentAuthenticated || which !== "parent";
@@ -947,8 +966,18 @@ function showView(which) {
     which !== "care" || !staffAuthenticated;
 
   renderDays();
-
   renderAll();
+
+}
+
+
+function showParentTab(tab) {
+
+  document.getElementById("parentOrderView").hidden = tab !== "order";
+  document.getElementById("parentBillingView").hidden = tab !== "billing";
+
+  document.getElementById("parentOrderTab").classList.toggle("active", tab === "order");
+  document.getElementById("parentBillingTab").classList.toggle("active", tab === "billing");
 
 }
 
