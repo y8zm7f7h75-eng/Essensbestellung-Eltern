@@ -220,43 +220,7 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
 
 
-<div id="menuUpload" hidden>
 
-  <h3>Menüplan für eine Woche hochladen</h3>
-
-  <label for="menuWeekStart">Montag der Kalenderwoche</label>
-
-  <input type="date" id="menuWeekStart">
-
-  <label for="menuReleaseAt">Elternfreigabe (automatisch berechnet)</label>
-
-  <input type="datetime-local" id="menuReleaseAt" readonly>
-
-  <label for="menuCutoffAt">Bestellschluss (automatisch berechnet)</label>
-
-  <input type="datetime-local" id="menuCutoffAt" readonly>
-
-  <label for="menuZipFile">Speiseplan-Datei (ZIP)</label>
-
-  <input type="file" id="menuZipFile" accept=".zip,application/zip">
-
-  <label for="menuPdfFile">Menüplan für Eltern (PDF)</label>
-
-  <input type="file" id="menuPdfFile" accept=".pdf,application/pdf">
-
-  <button type="button" id="uploadMenuPlanButton">
-
-    Menüplan hochladen
-
-  </button>
-
-  <p id="menuUploadMessage" class="note">
-
-    Bitte eine Kalenderwoche und beide Dateien auswählen.
-
-  </p>
-
-</div>
 
   
 
@@ -305,7 +269,43 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <div id="staffTools" hidden>
   <p class="note">Angemeldet als Betreuung.</p>
   <button onclick="logoutCare()">Abmelden</button>
+<div id="menuUpload" hidden>
 
+  <h3>Menüplan für eine Woche hochladen</h3>
+
+  <label for="menuWeekStart">Montag der Kalenderwoche</label>
+
+  <input type="date" id="menuWeekStart">
+
+  <label for="menuReleaseAt">Elternfreigabe (automatisch berechnet)</label>
+
+  <input type="datetime-local" id="menuReleaseAt" readonly>
+
+  <label for="menuCutoffAt">Bestellschluss (automatisch berechnet)</label>
+
+  <input type="datetime-local" id="menuCutoffAt" readonly>
+
+  <label for="menuZipFile">Speiseplan-Datei (ZIP)</label>
+
+  <input type="file" id="menuZipFile" accept=".zip,application/zip">
+
+  <label for="menuPdfFile">Menüplan für Eltern (PDF)</label>
+
+  <input type="file" id="menuPdfFile" accept=".pdf,application/pdf">
+
+  <button type="button" id="uploadMenuPlanButton">
+
+    Menüplan hochladen
+
+  </button>
+
+  <p id="menuUploadMessage" class="note">
+
+    Bitte eine Kalenderwoche und beide Dateien auswählen.
+
+  </p>
+
+</div>
   <h3>Neue Allergieänderungen</h3>
   <div id="allergyChanges" class="note">Änderungen werden geladen …</div>
     <hr>
