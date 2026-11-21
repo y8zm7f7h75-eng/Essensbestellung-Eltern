@@ -494,13 +494,6 @@ function setParentAccess(allowed) {
 }
 
 function fillChildSelects() {
-  const childSelect = document.getElementById("child");
-  childSelect.innerHTML = "";
-
-  children.forEach(c => {
-    childSelect.add(new Option(c.name, c.id));
-  });
-
   renderDays();
   renderAll();
 }
@@ -563,7 +556,7 @@ async function loadParentAllergyData() {
     .order("sort_order");
 
   if (variantsError) {
-    document.getElementById("allergyMessage").textContent =
+    document.getElementById("parentAuthMessage").textContent =
       "Allergievarianten konnten nicht geladen werden.";
     return;
   }
@@ -576,7 +569,7 @@ async function loadParentAllergyData() {
     .in("child_id", childIds);
 
   if (savedError) {
-    document.getElementById("allergyMessage").textContent =
+    document.getElementById("parentAuthMessage").textContent =
       "Gespeicherte Allergieangaben konnten nicht geladen werden.";
     return;
   }
@@ -587,45 +580,42 @@ async function loadParentAllergyData() {
   });
 }
 
-function renderAllergySettings(childId) {
-  const area = document.getElementById("allergyOptions");
-  const saveButton = document.getElementById("saveAllergies");
-  if (!area || !saveButton) return;
-
+function renderAllergySettings(childId, area) {
   area.innerHTML = "";
   const selectedIds = childAllergyMap[childId] || [];
 
-  if (!parentAuthenticated || !childId) {
-    area.textContent = "Bitte zuerst anmelden und ein Kind auswählen.";
-    saveButton.disabled = true;
+  if (!parentAuthenticated) {
+    area.textContent = "Bitte zuerst als Elternteil anmelden.";
     return;
   }
 
   if (mealVariants.length === 0) {
     area.textContent = "Es konnten keine aktiven Allergievarianten geladen werden.";
-    saveButton.disabled = true;
     return;
   }
 
   mealVariants.forEach(variant => {
     const label = document.createElement("label");
     label.style.fontWeight = "normal";
+
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.value = variant.id;
     checkbox.checked = selectedIds.includes(Number(variant.id));
     checkbox.style.marginRight = "8px";
+
     label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(variant.name + " (" + variant.code + ")"));
+    label.appendChild(
+      document.createTextNode(variant.name + " (" + variant.code + ")")
+    );
+
     area.appendChild(label);
   });
-
-  saveButton.disabled = false;
 }
 
-async function saveChildAllergies() {
-  const childId = document.getElementById("child").value;
-  const message = document.getElementById("allergyMessage");
+async function saveChildAllergies(childId, card) {
+  const message = card.querySelector('[role="status"]');
+
 
   if (!parentAuthenticated || !childId || !window.appSupabase) {
     message.textContent = "Bitte zuerst als Elternteil anmelden.";
@@ -633,7 +623,7 @@ async function saveChildAllergies() {
   }
 
   const variantIds = Array.from(
-    document.querySelectorAll("#allergyOptions input[type='checkbox']:checked")
+    card.querySelectorAll("input[type='checkbox']:checked")
   ).map(input => Number(input.value));
 
   if (!confirm(
@@ -644,21 +634,28 @@ async function saveChildAllergies() {
   }
 
   message.textContent = "Allergieangaben werden gespeichert …";
-  const { data, error } = await window.appSupabase.rpc("save_child_meal_variants", {
-    p_child_id: childId,
-    p_variant_ids: variantIds
-  });
+
+  const { data, error } = await window.appSupabase.rpc(
+    "save_child_meal_variants",
+    {
+      p_child_id: childId,
+      p_variant_ids: variantIds
+    }
+  );
 
   if (error) {
-    message.textContent = "Speichern nicht möglich. Bitte Betreuung informieren.";
+    message.textContent =
+      "Speichern nicht möglich. Bitte Betreuung informieren.";
     return;
   }
 
   childAllergyMap[childId] = variantIds;
+
   message.textContent = data
-    ? "Allergieangaben wurden gespeichert. Die Betreuung wurde über die Änderung informiert."
-    : "Die Allergieangaben waren bereits so gespeichert. Es war keine Änderung nötig.";
-  renderAllergySettings(childId);
+    ? "Allergieangaben wurden gespeichert. Die Betreuung wurde informiert."
+    : "Die Allergieangaben waren bereits so gespeichert.";
+
+  
 }
 
 async function loginParent() {
@@ -842,7 +839,7 @@ function init() {
 
   fillChildSelects();
 
-  document.getElementById("child").addEventListener("change", renderDays);
+  
 
   document.getElementById("cutoff").value = localDateTime(cutoff);
 
@@ -861,63 +858,86 @@ function localDateTime(d) {
 }
 
 function renderDays() {
-
-  const child = document.getElementById("child").value;
-
-  const area = document.getElementById("days");
+  const area = document.getElementById("childrenOrderCards");
+  if (!area) return;
 
   area.innerHTML = "";
 
-  weekdays.forEach(day => {
+  children.forEach(child => {
+    const card = document.createElement("div");
+    card.style.border = "1px solid #dce7e3";
+    card.style.borderRadius = "14px";
+    card.style.padding = "14px";
+    card.style.marginBottom = "16px";
+    card.style.background = "#ffffff";
 
-    const row = document.createElement("div");
+    const heading = document.createElement("h3");
+    heading.textContent = child.name;
+    card.appendChild(heading);
 
-    row.className = "day";
+    const allergyHeading = document.createElement("h4");
+    allergyHeading.textContent = "Allergieessen";
+    card.appendChild(allergyHeading);
 
-    const name = document.createElement("strong");
+    const allergyNote = document.createElement("p");
+    allergyNote.className = "note";
+    allergyNote.textContent =
+      "Diese Angaben gelten für zukünftige X-Bestellungen dieses Kindes.";
+    card.appendChild(allergyNote);
 
-    name.textContent = day;
+    const allergyArea = document.createElement("div");
+    card.appendChild(allergyArea);
 
-    row.appendChild(name);
+    const allergyButton = document.createElement("button");
+    allergyButton.textContent = "Allergieangaben speichern";
+    allergyButton.disabled = !parentAuthenticated;
+    allergyButton.onclick = () => saveChildAllergies(child.id, card);
+    card.appendChild(allergyButton);
 
-    ["X", "S"].forEach(value => {
+    const allergyMessage = document.createElement("p");
+    allergyMessage.className = "note";
+    allergyMessage.setAttribute("role", "status");
+    card.appendChild(allergyMessage);
 
-      const b = document.createElement("button");
+    renderAllergySettings(child.id, allergyArea);
 
-      b.textContent = value;
+    const orderHeading = document.createElement("h4");
+    orderHeading.textContent = "Essensbestellung";
+    card.appendChild(orderHeading);
 
-      b.className = "choice" + (selected(child, day) === value ? " active" : "");
+    weekdays.forEach(day => {
+      const row = document.createElement("div");
+      row.className = "day";
 
-      b.disabled = view !== "parent" || new Date() >= cutoff;
+      const name = document.createElement("strong");
+      name.textContent = day;
+      row.appendChild(name);
 
-      b.onclick = () => {
+      ["X", "S"].forEach(value => {
+        const button = document.createElement("button");
+        button.textContent = value;
+        button.className =
+          "choice" + (selected(child.id, day) === value ? " active" : "");
+        button.disabled =
+          !parentAuthenticated || view !== "parent" || new Date() >= cutoff;
 
-        orders[key(child, day)] = value;
+        button.onclick = () => {
+          orders[key(child.id, day)] = value;
+          renderDays();
+          renderAll();
+        };
 
-        renderDays();
+        row.appendChild(button);
+      });
 
-        renderAll();
-
-      };
-
-      row.appendChild(b);
-
+      card.appendChild(row);
     });
 
-    area.appendChild(row);
-
+    area.appendChild(card);
   });
 
-  renderAllergySettings(child);
-
   document.getElementById("deadline").textContent =
-
     "Bestellschluss: " + cutoff.toLocaleString("de-DE");
-
-  document.getElementById("saveOrder").disabled =
-
-    view !== "parent" || !parentAuthenticated || children.length === 0 || new Date() >= cutoff;
-
 }
 
 function saveOrder() {
