@@ -240,29 +240,15 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
       <button onclick="logoutParent()">Abmelden</button>
 
-      <label for="child">Kind auswählen</label>
+      <p class="note">Jedes Kind hat hier seinen eigenen Bereich für Allergieangaben und Essensbestellungen.</p>
 
-      <select id="child"></select>
-
-      <h3>Allergieessen für dieses Kind</h3>
-
-      <p class="note">Die Auswahl bleibt gespeichert und wird bei zukünftigen X-Bestellungen berücksichtigt.</p>
-
-      <div id="allergyOptions"></div>
-
-      <button id="saveAllergies" onclick="saveChildAllergies()">Allergieangaben speichern</button>
-
-      <p id="allergyMessage" class="note" role="status"></p>
-
-      <p class="note">X = Essen bestellen · S = eigenes Essen</p>
-
-      <div id="days"></div>
+      <div id="childrenOrderCards"></div>
 
       <p id="deadline" class="note"></p>
 
-      <button id="saveOrder" onclick="saveOrder()">Auswahl speichern</button>
-
       <p id="saveMessage" role="status"></p>
+
+    
 
     </div>
 
