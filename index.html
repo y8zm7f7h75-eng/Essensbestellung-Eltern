@@ -112,7 +112,20 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 }
 
-.choice.active { background: #477b6e; color: white; }
+.choice {
+  background: #626b68;
+  color: white;
+}
+
+.choice.no-order {
+  background: #d97706;
+  color: white;
+}
+
+.choice.active {
+  background: #477b6e;
+  color: white;
+}
 
 .note { font-size: 13px; color: #536761; }
 
@@ -932,8 +945,15 @@ function renderDays() {
     ["X", "S", "–"].forEach(value => {
         const button = document.createElement("button");
         button.textContent = value;
-        button.className =
-          "choice" + (selected(child.id, day) === value ? " active" : "");
+        const currentSelection = selected(child.id, day);
+
+button.className =
+  "choice" +
+  (currentSelection === value
+    ? " active"
+    : value === "–" && !currentSelection
+      ? " no-order"
+      : "");
         button.disabled =
           !parentAuthenticated || view !== "parent" || new Date() >= cutoff;
 
