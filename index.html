@@ -141,7 +141,29 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 table { width: 100%; border-collapse: collapse; }
 
 th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
+.care-child-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid #dce5e1;
+  border-radius: 6px;
+}
 
+.care-child-row:nth-child(odd) {
+  background: #f2f7f5;
+}
+
+.care-child-row:nth-child(even) {
+  background: #e4eeea;
+}
+
+.care-child-order {
+  text-align: center;
+  font-weight: bold;
+  font-size: 18px;
+}
 @media (max-width: 480px) {
 
   main { padding: 10px; }
@@ -640,16 +662,56 @@ async function loadCareChildren() {
     return;
   }
 
+  const { data: todayOrders, error: ordersError } = await window.appSupabase
+    .from("meal_orders")
+    .select("child_id, order_type, cancelled_at")
+    .eq("meal_date", localDateISO());
+
+  if (ordersError) {
+    area.textContent = "Bestellungen konnten nicht geladen werden: " + ordersError.message;
+    return;
+  }
+
+  const orderMap = {};
+  (todayOrders || []).forEach(order => {
+    orderMap[order.child_id] = order;
+  });
+
   careChildren = (data || []).map(child => ({
     id: child.id,
     name: [child.first_name, child.last_name].filter(Boolean).join(" "),
-    classLevel: child.class_level,
-    classColor: child.class_color
+    classLevel: child.class_level
   }));
 
-  area.textContent = careChildren.length
-    ? careChildren.length + " aktive Kinder wurden geladen."
-    : "Es sind noch keine aktiven Kinder hinterlegt.";
+  area.innerHTML = "";
+
+  if (careChildren.length === 0) {
+    area.textContent = "Es sind noch keine aktiven Kinder hinterlegt.";
+    return;
+  }
+
+  careChildren.forEach(child => {
+    const row = document.createElement("div");
+    row.className = "care-child-row";
+
+    const name = document.createElement("span");
+    name.textContent = child.name +
+      (child.classLevel ? " · Klasse " + child.classLevel : "");
+
+    const order = document.createElement("span");
+    order.className = "care-child-order";
+
+    const todayOrder = orderMap[child.id];
+
+    order.textContent = !todayOrder ? "–" :
+      todayOrder.cancelled_at ? "Storniert" :
+      todayOrder.order_type === "meal" ? "X" :
+      todayOrder.order_type === "own_food" ? "S" : "–";
+
+    row.appendChild(name);
+    row.appendChild(order);
+    area.appendChild(row);
+  });
 }
 async function loadParentAllergyData() {
   mealVariants = [];
