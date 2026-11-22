@@ -1126,7 +1126,9 @@ async function loadSettings() {
   const daysUntil = (weekday - nextCutoff.getDay() + 7) % 7 || 7;
   nextCutoff.setDate(nextCutoff.getDate() + daysUntil);
   nextCutoff.setHours(hours, minutes, 0, 0);
+  if (!activeMealWeek) {
   cutoff = nextCutoff;
+}
   document.getElementById("cutoff").value = localDateTime(cutoff);
 
   message.textContent = "Gespeicherter Preis aus Supabase geladen.";
@@ -1527,6 +1529,7 @@ async function loadAvailableMenuPlan() {
 
   const week = weeks[0];
   activeMealWeek = week;
+  cutoff = new Date(week.order_cutoff_at);
   if (parentAuthenticated) {
   await loadParentOrders();
 }
