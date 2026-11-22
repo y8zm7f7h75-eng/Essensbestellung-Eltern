@@ -610,6 +610,9 @@ let children = demoChildren.slice();
   
   let careChildren = [];
 let careNotComing = [];
+  
+let attendanceRealtimeChannel = null;
+
 let parentAuthenticated = false;
 let mealVariants = [];
 let childAllergyMap = {};
@@ -910,7 +913,29 @@ async function loadCareChildren() {
   renderCareLists();
 }
 
+function subscribeAttendanceRealtime() {
+  if (!staffAuthenticated || !window.appSupabase) return;
 
+  if (attendanceRealtimeChannel) {
+    window.appSupabase.removeChannel(attendanceRealtimeChannel);
+    attendanceRealtimeChannel = null;
+  }
+
+  attendanceRealtimeChannel = window.appSupabase
+    .channel("meal-attendance-live")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "meal_attendance_checks"
+      },
+      () => {
+        if (staffAuthenticated) loadCareChildren();
+      }
+    )
+    .subscribe();
+}
   
 async function loadParentAllergyData() {
   mealVariants = [];
@@ -1130,6 +1155,7 @@ async function loginCare() {
     ? "Anmeldung erfolgreich. Du bist als Admin angemeldet."
     : "Anmeldung erfolgreich. Du bist als Betreuung angemeldet.";
   await loadCareChildren();
+  subscribeAttendanceRealtime();
   await loadSettings();
   await loadAllergyChanges();
   await loadCancellableOrders();
