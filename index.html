@@ -630,7 +630,7 @@ async function loadCareChildren() {
 
   const { data, error } = await window.appSupabase
     .from("children")
-    .select("id, first_name, last_name, class_level, class_color")
+    .select("id, first_name, last_name, class_level")
     .eq("active", true)
     .order("class_level")
     .order("first_name");
