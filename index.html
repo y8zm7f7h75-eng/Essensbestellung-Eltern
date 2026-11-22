@@ -967,11 +967,24 @@ weekDays.forEach(date => {
 
       const button = document.createElement("button");
       button.textContent = "Wieder da";
-      button.onclick = () => {
-        careNotComing = careNotComing.filter(id => id !== child.id);
-        renderCareLists();
-      };
+      
+button.onclick = async () => {
+  if (!confirm("Soll der Eintrag „Kommt nicht“ wirklich gelöscht werden?")) return;
 
+  const { error } = await window.appSupabase
+    .from("care_day_status")
+    .delete()
+    .eq("child_id", child.id)
+    .eq("status_date", today)
+    .eq("status_type", "not_coming");
+
+  if (error) {
+    alert("Eintrag konnte nicht gelöscht werden: " + error.message);
+    return;
+  }
+
+  await loadCareChildren();
+};
       row.appendChild(name);
       row.appendChild(button);
       notComingArea.appendChild(row);
