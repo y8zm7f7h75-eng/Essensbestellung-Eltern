@@ -337,6 +337,13 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   </p>
 
 </div>
+    <h3>Aktueller Menüplan</h3>
+
+<div id="staffMenuArea">
+
+  <p class="note">Menüplan wird nach der Anmeldung geladen.</p>
+
+</div>
   <h3>Neue Allergieänderungen</h3>
   <div id="allergyChanges" class="note">Änderungen werden geladen …</div>
     <hr>
@@ -1519,7 +1526,9 @@ function renderAll() {
   renderAll();
 }
 async function loadAvailableMenuPlan() {
-  const area = document.getElementById("menuArea");
+  const area = document.getElementById(
+  staffAuthenticated ? "staffMenuArea" : "menuArea"
+);
 
   if (!window.appSupabase ||
       (!parentAuthenticated && !staffAuthenticated)) {
