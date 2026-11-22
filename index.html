@@ -462,7 +462,7 @@ let cancellations = {};
 let price = 3.90;
 
 let cutoff = nextThursday();
-
+let activeMealWeek = null;
 let view = "parent";
 let staffAuthenticated = false;
 let staffRole = null;
@@ -1349,7 +1349,7 @@ async function loadAvailableMenuPlan() {
 
   const { data: weeks, error } = await window.appSupabase
     .from("meal_plan_weeks")
-    .select("week_start, flyer_object_path")
+    .select("week_start, order_cutoff_at, flyer_object_path")
     .eq("status", "released")
     .order("week_start", { ascending: false })
     .limit(1);
@@ -1367,7 +1367,7 @@ async function loadAvailableMenuPlan() {
   }
 
   const week = weeks[0];
-
+  activeMealWeek = week;
   const { data: file, error: fileError } =
     await window.appSupabase.storage
       .from("speiseplaene")
