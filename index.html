@@ -929,7 +929,7 @@ function renderDays() {
       name.textContent = day;
       row.appendChild(name);
 
-      ["X", "S"].forEach(value => {
+    ["X", "S", "–"].forEach(value => {
         const button = document.createElement("button");
         button.textContent = value;
         button.className =
@@ -938,10 +938,10 @@ function renderDays() {
           !parentAuthenticated || view !== "parent" || new Date() >= cutoff;
 
         button.onclick = () => {
-          orders[key(child.id, day)] = value;
-          renderDays();
-          renderAll();
-        };
+  orders[key(child.id, day)] = value === "–" ? "" : value;
+  renderDays();
+  renderAll();
+};
 
         row.appendChild(button);
       });
