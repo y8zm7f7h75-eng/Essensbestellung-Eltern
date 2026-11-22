@@ -341,7 +341,13 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <p class="note">Kinder und Bestellungen werden geladen.</p>
 
 </div>
+<h3>Kommt nicht</h3>
 
+<div id="careNotComingList" class="note">
+
+  Bisher keine Einträge.
+
+</div>
 <hr>
 
   <h3>Neue Allergieänderungen</h3>
@@ -545,7 +551,7 @@ const demoChildren = [
 let children = demoChildren.slice();
   
   let careChildren = [];
-
+let careNotComing = [];
 let parentAuthenticated = false;
 let mealVariants = [];
 let childAllergyMap = {};
