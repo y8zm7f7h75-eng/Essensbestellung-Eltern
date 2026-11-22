@@ -178,6 +178,13 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
     <button id="careTab" onclick="showView('care')">Betreuung</button>
 
   </div>
+  <div id="sessionActions">
+
+  <button id="parentLogoutButton" onclick="logoutParent()" hidden>Eltern abmelden</button>
+
+  <button id="staffLogoutButton" onclick="logoutCare()" hidden>Betreuung abmelden</button>
+
+</div>
 
   <p class="note">Demo ohne Anmeldung. Noch keine echten Daten eingeben!</p>
 
@@ -486,7 +493,9 @@ function setStaffAccess(allowed, role = null) {
   staffRole = allowed ? role : null;
   document.getElementById("adminSettings").hidden = !allowed || role !== "admin";
 
-  document.getElementById("careLogin").hidden = allowed;
+  document.getElementById("careLogin").hidden = allowed || view !== "care";
+  document.getElementById("parentLogoutButton").hidden = true;
+  document.getElementById("staffLogoutButton").hidden = !allowed || view !== "care";
   document.getElementById("staffTools").hidden = !allowed;
   document.getElementById("menuUpload").hidden =
     view !== "care" || !allowed;
@@ -500,6 +509,8 @@ function setParentAccess(allowed) {
   parentAuthenticated = allowed;
   document.getElementById("parentLogin").hidden = allowed;
   document.getElementById("parentTools").hidden = !allowed;
+  document.getElementById("parentLogoutButton").hidden = !allowed || view !== "parent";
+  document.getElementById("staffLogoutButton").hidden = true;
 
   if (allowed) {
     loadAvailableMenuPlan();
@@ -1010,8 +1021,13 @@ function showView(which) {
   document.getElementById("parentLogin").hidden =
     parentAuthenticated || which !== "parent";
 
-  document.getElementById("careLogin").hidden =
+    document.getElementById("careLogin").hidden =
     staffAuthenticated || which !== "care";
+
+  document.getElementById("parentLogoutButton").hidden =
+    !parentAuthenticated || which !== "parent";
+  document.getElementById("staffLogoutButton").hidden =
+    !staffAuthenticated || which !== "care";
 
   document.getElementById("menuUpload").hidden =
     which !== "care" || !staffAuthenticated;
