@@ -928,20 +928,18 @@ weekDays.forEach(date => {
 
       const button = document.createElement("button");
       button.textContent = "Kommt nicht";
-      button.onclick = async () => {
+     button.onclick = async () => {
+  if (!confirm("Soll der Eintrag „Kommt nicht“ wirklich gelöscht werden?")) return;
+
   const { error } = await window.appSupabase
     .from("care_day_status")
-    .upsert({
-      child_id: child.id,
-      status_date: today,
-      status_type: "not_coming"
-    }, {
-      onConflict: "child_id,status_date,status_type",
-      ignoreDuplicates: true
-    });
+    .delete()
+    .eq("child_id", child.id)
+    .eq("status_date", today)
+    .eq("status_type", "not_coming");
 
   if (error) {
-    alert("Eintrag konnte nicht gespeichert werden: " + error.message);
+    alert("Eintrag konnte nicht gelöscht werden: " + error.message);
     return;
   }
 
