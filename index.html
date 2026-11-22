@@ -948,7 +948,16 @@ function renderDays() {
 
       card.appendChild(row);
     });
+    const orderButton = document.createElement("button");
+    orderButton.textContent = "Essensbestellung speichern";
+    orderButton.disabled = !parentAuthenticated;
+    orderButton.onclick = () => saveChildOrders(child.id, card);
+    card.appendChild(orderButton);
 
+    const orderMessage = document.createElement("p");
+    orderMessage.className = "note";
+    orderMessage.setAttribute("role", "status");
+    card.appendChild(orderMessage);
     area.appendChild(card);
   });
 
@@ -1350,6 +1359,75 @@ function renderAll() {
 
       { style: "currency", currency: "EUR" });
 
+}
+ async function saveChildOrders(childId, card) {
+  const messages = card.querySelectorAll("p[role='status']");
+  const message = messages[1] || messages[0];
+
+  if (!parentAuthenticated || !window.appSupabase) {
+    message.textContent = "Bitte zuerst als Elternteil anmelden.";
+    return;
+  }
+
+  if (!activeMealWeek) {
+    message.textContent = "Es ist keine Essenswoche geladen.";
+    return;
+  }
+
+  message.textContent = "Bestellungen werden gespeichert …";
+
+  const savedDays = [];
+  const failedDays = [];
+  const skippedDays = [];
+
+  for (const day of weekdays) {
+    if (isCancelled(childId, day)) {
+      skippedDays.push(day);
+      continue;
+    }
+
+    const mealDate = mealDateForDay(day);
+    const choice = selected(childId, day);
+
+    const orderType =
+      choice === "X" ? "meal" :
+      choice === "S" ? "own_food" :
+      null;
+
+    const { error } = await window.appSupabase.rpc(
+      "save_parent_meal_order",
+      {
+        p_child_id: childId,
+        p_meal_date: mealDate,
+        p_order_type: orderType
+      }
+    );
+
+    if (error) {
+      failedDays.push(day);
+    } else {
+      savedDays.push(day);
+    }
+  }
+
+  let result = "";
+
+  if (savedDays.length > 0) {
+    result = "Gespeichert: " + savedDays.join(", ") + ". ";
+  }
+
+  if (failedDays.length > 0) {
+    result += "Nicht gespeichert: " + failedDays.join(", ") + ". ";
+  }
+
+  if (skippedDays.length > 0) {
+    result +=
+      "Bereits stornierte Tage wurden nicht verändert: " +
+      skippedDays.join(", ") + ".";
+  }
+
+  message.textContent = result || "Es gab nichts zu speichern.";
+  renderAll();
 }
   async function loadParentOrders() {
   orders = {};
