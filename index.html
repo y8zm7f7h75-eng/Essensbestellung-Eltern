@@ -1162,6 +1162,12 @@ async function loginCare() {
 }
 
 async function logoutCare() {
+  
+if (attendanceRealtimeChannel && window.appSupabase) {
+  window.appSupabase.removeChannel(attendanceRealtimeChannel);
+  attendanceRealtimeChannel = null;
+}
+
   if (window.appSupabase) await window.appSupabase.auth.signOut();
   setStaffAccess(false);
   document.getElementById("carePassword").value = "";
