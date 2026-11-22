@@ -299,7 +299,19 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <div id="staffTools" hidden>
   <p class="note">Angemeldet als Betreuung.</p>
-  
+  <div class="tabs">
+
+  <button id="staffDailyTab" class="active" onclick="showStaffTab('daily')">Tagesplan</button>
+
+  <button id="staffWeeklyTab" onclick="showStaffTab('weekly')">Wochenplan</button>
+
+  <button id="staffMenuTab" onclick="showStaffTab('menu')">Menüplan</button>
+
+  <button id="staffBillingTab" onclick="showStaffTab('billing')">Abrechnung</button>
+
+</div>
+
+<div id="staffDailyView">
 <div id="menuUpload" hidden>
 
   <h3>Menüplan für eine Woche hochladen</h3>
@@ -414,7 +426,29 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
   <div id="weeklyList"></div>
 
   <button onclick="window.print()">Wochenliste drucken</button>
-  </div>
+</div>
+
+<div id="staffWeeklyView" hidden>
+
+  <h2>Wochenplan</h2>
+
+  <p class="note">Hier entsteht die druckbare Wochenliste.</p>
+
+</div>
+
+<div id="staffMenuView" hidden>
+
+  <h2>Menüplan</h2>
+
+</div>
+
+<div id="staffBillingView" hidden>
+
+  <h2>Abrechnung</h2>
+
+</div>
+
+</div>
 
 </section>
 
@@ -1059,7 +1093,17 @@ function showParentTab(tab) {
   document.getElementById("parentBillingTab").classList.toggle("active", tab === "billing");
 
 }
+function showStaffTab(tab) {
+  document.getElementById("staffDailyView").hidden = tab !== "daily";
+  document.getElementById("staffWeeklyView").hidden = tab !== "weekly";
+  document.getElementById("staffMenuView").hidden = tab !== "menu";
+  document.getElementById("staffBillingView").hidden = tab !== "billing";
 
+  document.getElementById("staffDailyTab").classList.toggle("active", tab === "daily");
+  document.getElementById("staffWeeklyTab").classList.toggle("active", tab === "weekly");
+  document.getElementById("staffMenuTab").classList.toggle("active", tab === "menu");
+  document.getElementById("staffBillingTab").classList.toggle("active", tab === "billing");
+}
 
 async function loadAllergyChanges() {
   const area = document.getElementById("allergyChanges");
