@@ -1351,7 +1351,52 @@ function renderAll() {
       { style: "currency", currency: "EUR" });
 
 }
-  
+  async function loadParentOrders() {
+  orders = {};
+  cancellations = {};
+
+  if (!window.appSupabase || !activeMealWeek || children.length === 0) {
+    return;
+  }
+
+  const firstDate = mealDateForDay("Montag");
+  const lastDate = mealDateForDay("Freitag");
+  const childIds = children.map(child => child.id);
+
+  const { data, error } = await window.appSupabase
+    .from("meal_orders")
+    .select("child_id, meal_date, order_type, cancelled_at")
+    .in("child_id", childIds)
+    .gte("meal_date", firstDate)
+    .lte("meal_date", lastDate);
+
+  if (error) {
+    document.getElementById("parentAuthMessage").textContent =
+      "Gespeicherte Bestellungen konnten nicht geladen werden.";
+    return;
+  }
+
+  (data || []).forEach(order => {
+    const date = new Date(order.meal_date + "T12:00:00");
+    const day = weekdays[date.getDay() === 0 ? 6 : date.getDay() - 1];
+
+    if (!day) return;
+
+    const orderKey = key(order.child_id, day);
+
+    if (order.cancelled_at) {
+      cancellations[orderKey] = true;
+      return;
+    }
+
+    orders[orderKey] =
+      order.order_type === "meal" ? "X" :
+      order.order_type === "own_food" ? "S" : "";
+  });
+
+  renderDays();
+  renderAll();
+}
 async function loadAvailableMenuPlan() {
   const area = document.getElementById("menuArea");
 
@@ -1384,6 +1429,9 @@ async function loadAvailableMenuPlan() {
 
   const week = weeks[0];
   activeMealWeek = week;
+  if (parentAuthenticated) {
+  await loadParentOrders();
+}
   const { data: file, error: fileError } =
     await window.appSupabase.storage
       .from("speiseplaene")
