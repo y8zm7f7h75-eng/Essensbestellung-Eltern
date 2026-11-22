@@ -778,7 +778,13 @@ if (careDayStatusError) {
   (attendanceChecks || []).forEach(check => {
     attendanceMap[check.child_id] = check;
   });
-
+const careDayStatusMap = {};
+(careDayStatuses || []).forEach(status => {
+  if (!careDayStatusMap[status.status_date]) {
+    careDayStatusMap[status.status_date] = [];
+  }
+  careDayStatusMap[status.status_date].push(status);
+});
   careChildren = (data || []).map(child => ({
     id: child.id,
     name: [child.first_name, child.last_name].filter(Boolean).join(" "),
