@@ -521,6 +521,9 @@ const demoChildren = [
 ];
 
 let children = demoChildren.slice();
+  
+  let careChildren = [];
+
 let parentAuthenticated = false;
 let mealVariants = [];
 let childAllergyMap = {};
@@ -618,7 +621,36 @@ async function loadParentChildren(user) {
 
   return true;
 }
+async function loadCareChildren() {
+  const area = document.getElementById("staffDailyPlan");
 
+  if (!staffAuthenticated || !window.appSupabase) return;
+
+  area.textContent = "Kinder werden geladen …";
+
+  const { data, error } = await window.appSupabase
+    .from("children")
+    .select("id, first_name, last_name, class_level, class_color")
+    .eq("active", true)
+    .order("class_level")
+    .order("first_name");
+
+  if (error) {
+    area.textContent = "Kinder konnten nicht geladen werden: " + error.message;
+    return;
+  }
+
+  careChildren = (data || []).map(child => ({
+    id: child.id,
+    name: [child.first_name, child.last_name].filter(Boolean).join(" "),
+    classLevel: child.class_level,
+    classColor: child.class_color
+  }));
+
+  area.textContent = careChildren.length
+    ? careChildren.length + " aktive Kinder wurden geladen."
+    : "Es sind noch keine aktiven Kinder hinterlegt.";
+}
 async function loadParentAllergyData() {
   mealVariants = [];
   childAllergyMap = {};
@@ -836,7 +868,7 @@ async function loginCare() {
   message.textContent = role === "admin"
     ? "Anmeldung erfolgreich. Du bist als Admin angemeldet."
     : "Anmeldung erfolgreich. Du bist als Betreuung angemeldet.";
-
+  await loadCareChildren();
   await loadSettings();
   await loadAllergyChanges();
   await loadCancellableOrders();
@@ -865,7 +897,7 @@ async function restoreStaffSession() {
         role === "admin"
           ? "Admin ist angemeldet."
           : "Betreuung ist angemeldet.";
-
+      await loadCareChildren();
       await loadSettings();
       await loadAllergyChanges();
       await loadCancellableOrders();
