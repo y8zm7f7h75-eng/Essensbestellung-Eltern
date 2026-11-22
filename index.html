@@ -758,7 +758,17 @@ const weekEnd = localDateISO(weekEndDate);
     area.textContent = "Essens-Abhakliste konnte nicht geladen werden: " + attendanceError.message;
     return;
   }
+const { data: careDayStatuses, error: careDayStatusError } =
+  await window.appSupabase
+    .from("care_day_status")
+    .select("id, child_id, status_date, status_type")
+    .gte("status_date", weekStart)
+    .lte("status_date", weekEnd);
 
+if (careDayStatusError) {
+  area.textContent = "Tagesstatus konnten nicht geladen werden: " + careDayStatusError.message;
+  return;
+}
   const orderMap = {};
   (todayOrders || []).forEach(order => {
     orderMap[order.child_id] = order;
