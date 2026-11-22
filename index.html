@@ -649,6 +649,7 @@ async function loadParentChildren(user) {
 
   return true;
 }
+
 async function loadCareChildren() {
   const area = document.getElementById("staffDailyPlan");
   const notComingArea = document.getElementById("careNotComingList");
@@ -656,6 +657,8 @@ async function loadCareChildren() {
   if (!staffAuthenticated || !window.appSupabase) return;
 
   area.textContent = "Kinder werden geladen …";
+
+  const today = localDateISO();
 
   const { data, error } = await window.appSupabase
     .from("children")
@@ -672,10 +675,21 @@ async function loadCareChildren() {
   const { data: todayOrders, error: ordersError } = await window.appSupabase
     .from("meal_orders")
     .select("child_id, order_type, cancelled_at")
-    .eq("meal_date", localDateISO());
+    .eq("meal_date", today);
 
   if (ordersError) {
     area.textContent = "Bestellungen konnten nicht geladen werden: " + ordersError.message;
+    return;
+  }
+
+  const { data: attendanceChecks, error: attendanceError } =
+    await window.appSupabase
+      .from("meal_attendance_checks")
+      .select("child_id, checked_at")
+      .eq("meal_date", today);
+
+  if (attendanceError) {
+    area.textContent = "Essens-Abhakliste konnte nicht geladen werden: " + attendanceError.message;
     return;
   }
 
@@ -684,11 +698,160 @@ async function loadCareChildren() {
     orderMap[order.child_id] = order;
   });
 
+  const attendanceMap = {};
+  (attendanceChecks || []).forEach(check => {
+    attendanceMap[check.child_id] = check;
+  });
+
   careChildren = (data || []).map(child => ({
     id: child.id,
     name: [child.first_name, child.last_name].filter(Boolean).join(" "),
     classLevel: child.class_level
   }));
+
+  function renderCareLists() {
+    area.innerHTML = "";
+    notComingArea.innerHTML = "";
+
+    const presentChildren = careChildren.filter(
+      child => !careNotComing.includes(child.id)
+    );
+
+    const absentChildren = careChildren.filter(
+      child => careNotComing.includes(child.id)
+    );
+
+    presentChildren.forEach(child => {
+      const row = document.createElement("div");
+      row.className = "care-child-row";
+
+      const name = document.createElement("span");
+      name.textContent = child.name +
+        (child.classLevel ? " · Klasse " + child.classLevel : "");
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = Boolean(attendanceMap[child.id]);
+      checkbox.title = "Zum Essen gegangen";
+      checkbox.setAttribute("aria-label", child.name + " zum Essen gegangen");
+
+      checkbox.onchange = async () => {
+        checkbox.disabled = true;
+
+        if (checkbox.checked) {
+          const { data: userData, error: userError } =
+            await window.appSupabase.auth.getUser();
+
+          if (userError || !userData.user) {
+            alert("Die Anmeldung konnte nicht geprüft werden.");
+            checkbox.checked = false;
+            checkbox.disabled = false;
+            return;
+          }
+
+          const { error: insertError } = await window.appSupabase
+            .from("meal_attendance_checks")
+            .insert({
+              child_id: child.id,
+              meal_date: today,
+              checked_by: userData.user.id
+            });
+
+          if (insertError) {
+            alert("Der Haken konnte nicht gespeichert werden: " + insertError.message);
+            checkbox.checked = false;
+          } else {
+            attendanceMap[child.id] = { checked_at: new Date().toISOString() };
+          }
+        } else {
+          const confirmed = confirm(
+            "Möchtest du den Essensgang wirklich zurücksetzen? Das Kind kann danach erneut abgehakt werden."
+          );
+
+          if (!confirmed) {
+            checkbox.checked = true;
+            checkbox.disabled = false;
+            return;
+          }
+
+          const { error: deleteError } = await window.appSupabase
+            .from("meal_attendance_checks")
+            .delete()
+            .eq("child_id", child.id)
+            .eq("meal_date", today);
+
+          if (deleteError) {
+            alert("Der Haken konnte nicht zurückgesetzt werden: " + deleteError.message);
+            checkbox.checked = true;
+          } else {
+            delete attendanceMap[child.id];
+          }
+        }
+
+        checkbox.disabled = false;
+      };
+
+      const order = document.createElement("span");
+      order.className = "care-child-order";
+
+      const todayOrder = orderMap[child.id];
+      order.textContent = !todayOrder ? "–" :
+        todayOrder.cancelled_at ? "Storniert" :
+        todayOrder.order_type === "meal" ? "X" :
+        todayOrder.order_type === "own_food" ? "S" : "–";
+
+      const button = document.createElement("button");
+      button.textContent = "Kommt nicht";
+      button.onclick = () => {
+        careNotComing.push(child.id);
+        renderCareLists();
+      };
+
+      row.appendChild(name);
+      row.appendChild(checkbox);
+      row.appendChild(order);
+      row.appendChild(button);
+      area.appendChild(row);
+    });
+
+    if (presentChildren.length === 0) {
+      area.textContent = "Keine Kinder in dieser Liste.";
+    }
+
+    absentChildren.forEach(child => {
+      const row = document.createElement("div");
+      row.className = "care-child-row";
+
+      const name = document.createElement("span");
+      name.textContent = child.name +
+        (child.classLevel ? " · Klasse " + child.classLevel : "");
+
+      const button = document.createElement("button");
+      button.textContent = "Wieder da";
+      button.onclick = () => {
+        careNotComing = careNotComing.filter(id => id !== child.id);
+        renderCareLists();
+      };
+
+      row.appendChild(name);
+      row.appendChild(button);
+      notComingArea.appendChild(row);
+    });
+
+    if (absentChildren.length === 0) {
+      notComingArea.textContent = "Bisher keine Einträge.";
+    }
+  }
+
+  if (careChildren.length === 0) {
+    area.textContent = "Es sind noch keine aktiven Kinder hinterlegt.";
+    notComingArea.textContent = "Bisher keine Einträge.";
+    return;
+  }
+
+  renderCareLists();
+}
+
 
   function renderCareLists() {
     area.innerHTML = "";
