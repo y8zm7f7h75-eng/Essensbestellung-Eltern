@@ -720,7 +720,12 @@ async function loadCareChildren() {
   area.textContent = "Kinder werden geladen …";
 
   const today = localDateISO();
-
+const weekStartDate = new Date();
+weekStartDate.setDate(weekStartDate.getDate() - (weekStartDate.getDay() + 6) % 7);
+const weekEndDate = new Date(weekStartDate);
+weekEndDate.setDate(weekEndDate.getDate() + 4);
+const weekStart = localDateISO(weekStartDate);
+const weekEnd = localDateISO(weekEndDate);
   const { data, error } = await window.appSupabase
     .from("children")
     .select("id, first_name, last_name, class_level")
