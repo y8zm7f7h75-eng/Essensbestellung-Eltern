@@ -801,6 +801,9 @@ const careDayStatusMap = {};
   }
   careDayStatusMap[status.status_date].push(status);
 });
+  
+careNotComing = (careDayStatuses || []).filter(status => status.status_date === today && status.status_type === "not_coming").map(status => status.child_id);
+
   careChildren = (data || []).map(child => ({
     id: child.id,
     name: [child.first_name, child.last_name].filter(Boolean).join(" "),
