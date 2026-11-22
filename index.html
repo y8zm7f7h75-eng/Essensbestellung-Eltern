@@ -928,10 +928,25 @@ weekDays.forEach(date => {
 
       const button = document.createElement("button");
       button.textContent = "Kommt nicht";
-      button.onclick = () => {
-        careNotComing.push(child.id);
-        renderCareLists();
-      };
+      button.onclick = async () => {
+  const { error } = await window.appSupabase
+    .from("care_day_status")
+    .upsert({
+      child_id: child.id,
+      status_date: today,
+      status_type: "not_coming"
+    }, {
+      onConflict: "child_id,status_date,status_type",
+      ignoreDuplicates: true
+    });
+
+  if (error) {
+    alert("Eintrag konnte nicht gespeichert werden: " + error.message);
+    return;
+  }
+
+  await loadCareChildren();
+};
 
       row.appendChild(name);
       row.appendChild(checkbox);
