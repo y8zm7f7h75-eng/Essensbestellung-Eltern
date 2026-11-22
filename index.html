@@ -252,7 +252,7 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
     </div>
 
-    <h2>Bestellung für nächste Woche</h2>
+    <h2 id="orderWeekHeading">Bestellung für die Essenswoche</h2>
 
     <div id="parentTools" hidden>
 
@@ -1545,6 +1545,9 @@ async function loadAvailableMenuPlan() {
 
   const week = weeks[0];
   activeMealWeek = week;
+  document.getElementById("orderWeekHeading").textContent =
+  "Bestellung für die Essenswoche ab " +
+  new Date(week.week_start + "T12:00:00").toLocaleDateString("de-DE");
   cutoff = new Date(week.order_cutoff_at);
   if (parentAuthenticated) {
   await loadParentOrders();
