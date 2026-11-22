@@ -1185,6 +1185,7 @@ async function restoreStaffSession() {
           ? "Admin ist angemeldet."
           : "Betreuung ist angemeldet.";
       await loadCareChildren();
+      subscribeAttendanceRealtime();
       await loadSettings();
       await loadAllergyChanges();
       await loadCancellableOrders();
