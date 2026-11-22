@@ -794,7 +794,32 @@ const careDayStatusMap = {};
   function renderCareLists() {
     area.innerHTML = "";
     notComingArea.innerHTML = "";
+const weekDays = [];
+for (let i = 0; i < 5; i++) {
+  const date = new Date(weekStartDate);
+  date.setDate(date.getDate() + i);
+  weekDays.push(localDateISO(date));
+}
 
+weekDays.forEach(date => {
+  const heading = document.createElement("h4");
+  heading.textContent = new Intl.DateTimeFormat("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit"
+  }).format(new Date(date + "T12:00:00"));
+  notComingArea.appendChild(heading);
+
+  (careDayStatusMap[date] || []).forEach(status => {
+    const child = careChildren.find(item => item.id === status.child_id);
+    if (!child) return;
+
+    const entry = document.createElement("div");
+    entry.textContent = child.name + " – " +
+      (status.status_type === "not_coming" ? "Kommt nicht" : "Storniert");
+    notComingArea.appendChild(entry);
+  });
+});
     const presentChildren = careChildren.filter(
       child => !careNotComing.includes(child.id)
     );
@@ -920,10 +945,7 @@ const careDayStatusMap = {};
       notComingArea.appendChild(row);
     });
 
-    if (absentChildren.length === 0) {
-      notComingArea.textContent = "Bisher keine Einträge.";
-    }
-  }
+   
 
   if (careChildren.length === 0) {
     area.textContent = "Es sind noch keine aktiven Kinder hinterlegt.";
