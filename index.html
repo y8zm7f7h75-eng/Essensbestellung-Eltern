@@ -1467,10 +1467,27 @@ button.className =
     card.appendChild(orderButton);
 
     const orderMessage = document.createElement("p");
-    orderMessage.className = "note";
-    orderMessage.setAttribute("role", "status");
-    card.appendChild(orderMessage);
-    area.appendChild(card);
+orderMessage.className = "note";
+orderMessage.setAttribute("role", "status");
+
+const savedSnapshot = savedOrderSnapshots[child.id] || {};
+
+const hasSavedOrder = weekdays.some(day =>
+  savedSnapshot[day] === "X" || savedSnapshot[day] === "S"
+);
+
+const unchanged = weekdays.every(day =>
+  selected(child.id, day) === (savedSnapshot[day] || "")
+);
+
+if (hasSavedOrder && unchanged) {
+  orderMessage.textContent = "✓ Bestellung gespeichert";
+} else if (hasSavedOrder && !unchanged) {
+  orderMessage.textContent = "Änderungen noch nicht gespeichert.";
+}
+
+card.appendChild(orderMessage);
+area.appendChild(card);
   });
 
   document.getElementById("deadline").textContent =
@@ -1938,7 +1955,13 @@ function renderAll() {
       savedDays.push(day);
     }
   }
+if (!savedOrderSnapshots[childId]) {
+  savedOrderSnapshots[childId] = {};
+}
 
+savedDays.forEach(day => {
+  savedOrderSnapshots[childId][day] = selected(childId, day);
+});
   let result = "";
 
   if (savedDays.length > 0) {
