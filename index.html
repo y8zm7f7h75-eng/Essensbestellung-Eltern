@@ -301,7 +301,19 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
     
 
     </div>
+    <div id="currentWeekArea" style="margin-top: 24px; padding: 12px; border-top: 1px solid #dce7e3;">
 
+      <h3>Aktuelle Essenswoche</h3>
+
+      <p id="currentWeekHeading" class="note"></p>
+
+      <div id="currentWeekOrders">
+
+        Aktuelle Bestellungen werden geladen …
+
+      </div>
+
+    </div>
   </div>
 
   <div id="parentBillingView" hidden>
@@ -2037,7 +2049,127 @@ async function loadParentOrders() {
   renderDays();
   renderAll();
 }
+async function loadCurrentWeekOrders() {
+  const heading = document.getElementById("currentWeekHeading");
+  const area = document.getElementById("currentWeekOrders");
 
+  if (!heading || !area) return;
+
+  if (!window.appSupabase || children.length === 0) {
+    heading.textContent = "";
+    area.textContent = "Aktuell keine Kinder oder keine Datenbankverbindung.";
+    return;
+  }
+
+  const monday = new Date();
+  monday.setHours(12, 0, 0, 0);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+
+  const friday = new Date(monday);
+  friday.setDate(friday.getDate() + 4);
+
+  const firstDate = localDateISO(monday);
+  const lastDate = localDateISO(friday);
+
+  heading.textContent =
+    "Essenswoche " +
+    monday.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit"
+    }) +
+    "–" +
+    friday.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+
+  area.textContent = "Aktuelle Bestellungen werden geladen …";
+
+  const childIds = children.map(child => child.id);
+
+  const { data, error } = await window.appSupabase
+    .from("meal_orders")
+    .select("child_id, meal_date, order_type, cancelled_at")
+    .in("child_id", childIds)
+    .gte("meal_date", firstDate)
+    .lte("meal_date", lastDate);
+
+  if (error) {
+    area.textContent = "Die aktuellen Bestellungen konnten nicht geladen werden.";
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    area.textContent =
+      "Für diese Essenswoche liegen keine Bestellungen vor.";
+    return;
+  }
+
+  const orderMap = {};
+
+  data.forEach(order => {
+    const orderKey = order.child_id + "_" + order.meal_date;
+
+    orderMap[orderKey] = order.cancelled_at
+      ? "Storniert"
+      : order.order_type === "meal"
+        ? "X"
+        : order.order_type === "own_food"
+          ? "S"
+          : "–";
+  });
+
+  const table = document.createElement("table");
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+
+  const headerRow = document.createElement("tr");
+
+  const childHeader = document.createElement("th");
+  childHeader.textContent = "Kind";
+  headerRow.appendChild(childHeader);
+
+  weekdays.forEach((day, index) => {
+    const date = new Date(monday);
+    date.setDate(date.getDate() + index);
+
+    const cell = document.createElement("th");
+    cell.textContent =
+      day.substring(0, 2) + " " +
+      date.toLocaleDateString("de-DE", {
+        day: "2-digit",
+        month: "2-digit"
+      });
+    headerRow.appendChild(cell);
+  });
+
+  table.appendChild(headerRow);
+
+  children.forEach(child => {
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    nameCell.textContent = child.name;
+    row.appendChild(nameCell);
+
+    weekdays.forEach((day, index) => {
+      const date = new Date(monday);
+      date.setDate(date.getDate() + index);
+
+      const cell = document.createElement("td");
+      cell.textContent =
+        orderMap[child.id + "_" + localDateISO(date)] || "–";
+
+      row.appendChild(cell);
+    });
+
+    table.appendChild(row);
+  });
+
+  area.innerHTML = "";
+  area.appendChild(table);
+}
 async function loadAvailableMenuPlan() {
   const area = document.getElementById(
   staffAuthenticated ? "staffMenuArea" : "menuArea"
@@ -2050,7 +2182,9 @@ async function loadAvailableMenuPlan() {
   }
 
   area.textContent = "Menüplan wird geladen ...";
-
+if (parentAuthenticated) {
+  await loadCurrentWeekOrders();
+}
   const { data: weeks, error } = await window.appSupabase
     .from("meal_plan_weeks")
     .select("week_start, order_cutoff_at, flyer_object_path")
