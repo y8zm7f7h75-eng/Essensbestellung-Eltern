@@ -638,7 +638,7 @@ const weekdays = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
 let orders = {};
 
 let cancellations = {};
-
+let savedOrderSnapshots = {};
 let price = 3.90;
 
 let cutoff = nextThursday();
@@ -1958,9 +1958,11 @@ function renderAll() {
   message.textContent = result || "Es gab nichts zu speichern.";
   renderAll();
 }
-  async function loadParentOrders() {
+  
+async function loadParentOrders() {
   orders = {};
   cancellations = {};
+  savedOrderSnapshots = {};
 
   if (!window.appSupabase || !activeMealWeek || children.length === 0) {
     return;
@@ -1996,14 +1998,23 @@ function renderAll() {
       return;
     }
 
-    orders[orderKey] =
+    const choice =
       order.order_type === "meal" ? "X" :
       order.order_type === "own_food" ? "S" : "";
+
+    orders[orderKey] = choice;
+
+    if (!savedOrderSnapshots[order.child_id]) {
+      savedOrderSnapshots[order.child_id] = {};
+    }
+
+    savedOrderSnapshots[order.child_id][day] = choice;
   });
 
   renderDays();
   renderAll();
 }
+
 async function loadAvailableMenuPlan() {
   const area = document.getElementById(
   staffAuthenticated ? "staffMenuArea" : "menuArea"
