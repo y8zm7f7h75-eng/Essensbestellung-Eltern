@@ -486,6 +486,8 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
     <button type="button" id="saveMenuWeekButton" disabled>Menüplan speichern</button>
 
+    <button type="button" id="createMenuPdfButton">PDF aus gespeicherten Gerichten erstellen / reparieren</button>
+
     <p id="menuUploadMessage" class="note" role="status">
       Bitte eine bereits angelegte Woche auswählen oder einen Montag eingeben.
     </p>
@@ -2559,6 +2561,76 @@ async function saveMenuWeekMenus() {
   }
 }
 
+
+async function createMenuPdfFromSavedWeek() {
+  const message = document.getElementById("menuUploadMessage");
+  const weekStart = document.getElementById("menuWeekStart").value;
+
+  if (!staffAuthenticated || !["staff", "admin"].includes(staffRole)) {
+    message.textContent = "Bitte zuerst als Betreuung anmelden.";
+    return;
+  }
+  if (!weekStart) {
+    message.textContent = "Bitte zuerst eine bereits angelegte Essenswoche auswählen.";
+    return;
+  }
+
+  const button = document.getElementById("createMenuPdfButton");
+  button.disabled = true;
+  message.textContent = "Gespeicherte Gerichte werden für das PDF geladen …";
+
+  try {
+    const { data: week, error: weekError } = await window.appSupabase
+      .from("meal_plan_weeks")
+      .select("id, status")
+      .eq("week_start", weekStart)
+      .maybeSingle();
+    if (weekError) throw new Error("Essenswoche konnte nicht geladen werden: " + weekError.message);
+    if (!week || !["draft", "checked"].includes(week.status)) {
+      throw new Error("Das PDF kann nur für eine vorbereitete, noch nicht freigegebene Woche erstellt werden.");
+    }
+
+    const { data: menus, error: menusError } = await window.appSupabase
+      .from("meal_plan_day_menus")
+      .select("day_number, menu_number, dish_name")
+      .eq("meal_plan_week_id", week.id)
+      .order("day_number");
+    if (menusError) throw new Error("Gespeicherte Gerichte konnten nicht geladen werden: " + menusError.message);
+    if (!menus || menus.length !== 5 || menus.some((item, index) =>
+      Number(item.day_number) !== index + 1 || ![1, 2, 3].includes(Number(item.menu_number)) ||
+      !String(item.dish_name || "").trim()
+    )) {
+      throw new Error("Es müssen genau fünf vollständige Tagesgerichte gespeichert sein.");
+    }
+
+    const pdfBlob = createMenuPlanPdf(weekStart, menus);
+    const pdfPath = weekStart + "/menueplan.pdf";
+    const { error: uploadError } = await window.appSupabase.storage
+      .from("speiseplaene")
+      .upload(pdfPath, pdfBlob, {
+        contentType: "application/pdf",
+        upsert: true
+      });
+    if (uploadError) throw new Error("PDF konnte nicht hochgeladen werden: " + uploadError.message);
+
+    const { error: updateError } = await window.appSupabase
+      .from("meal_plan_weeks")
+      .update({
+        flyer_object_path: pdfPath,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", week.id);
+    if (updateError) throw new Error("PDF liegt im Speicher, konnte aber nicht mit der Woche verknüpft werden: " + updateError.message);
+
+    message.textContent = "PDF erfolgreich erstellt und mit der Essenswoche verknüpft. Die gespeicherten Gerichte wurden nicht verändert.";
+    await loadStaffMenuWeeks(weekStart);
+  } catch (error) {
+    message.textContent = "PDF-Erstellung: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 document.getElementById("menuWeekStart").addEventListener("change", () => {
   calculateMenuPlanTimes();
   document.getElementById("menuSavedWeeks").value = "";
@@ -2576,6 +2648,7 @@ document.getElementById("loadMenuWeekButton").addEventListener("click", () => {
   });
 });
 document.getElementById("saveMenuWeekButton").addEventListener("click", saveMenuWeekMenus);
+document.getElementById("createMenuPdfButton").addEventListener("click", createMenuPdfFromSavedWeek);
 
 async function prepareSupplierOrder() {
   const weekInput = document.getElementById("supplierWeekStart");
