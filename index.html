@@ -2163,81 +2163,104 @@ async function loadCurrentWeekOrders() {
 }
 async function loadAvailableMenuPlan() {
   const area = document.getElementById(
-  staffAuthenticated ? "staffMenuArea" : "menuArea"
-);
+    staffAuthenticated ? "staffMenuArea" : "menuArea"
+  );
 
-  if (!window.appSupabase ||
-      (!parentAuthenticated && !staffAuthenticated)) {
+  if (!window.appSupabase || (!parentAuthenticated && !staffAuthenticated)) {
     area.textContent = "Bitte zuerst anmelden.";
     return;
   }
 
-  area.textContent = "Menüplan wird geladen ...";
-if (parentAuthenticated) {
-  await loadCurrentWeekOrders();
-}
+  area.textContent = "Menüplan wird geladen …";
+  if (parentAuthenticated) await loadCurrentWeekOrders();
+
   const { data: weeks, error } = await window.appSupabase
     .from("meal_plan_weeks")
-    .select("week_start, order_cutoff_at, flyer_object_path")
+    .select("id, week_start, order_cutoff_at")
     .eq("status", "released")
     .order("week_start", { ascending: false })
     .limit(1);
 
   if (error) {
-    area.textContent =
-      "Der Menüplan konnte nicht geladen werden: " + error.message;
+    area.textContent = "Der Menüplan konnte nicht geladen werden: " + error.message;
     return;
   }
 
   if (!weeks || weeks.length === 0) {
-    area.textContent =
-      "Aktuell ist noch kein Menüplan freigegeben.";
+    area.textContent = "Aktuell ist noch kein Menüplan freigegeben.";
     return;
   }
 
   const week = weeks[0];
-  activeMealWeek = week;
-  document.getElementById("orderWeekHeading").textContent =
-  "Bestellung für die Essenswoche ab " +
-  new Date(week.week_start + "T12:00:00").toLocaleDateString("de-DE");
-  cutoff = new Date(week.order_cutoff_at);
-  if (parentAuthenticated) {
-  await loadParentOrders();
-}
-  const { data: file, error: fileError } =
-    await window.appSupabase.storage
-      .from("speiseplaene")
-      .createSignedUrl(week.flyer_object_path, 3600);
+  const { data: menus, error: menuError } = await window.appSupabase
+    .from("meal_plan_day_menus")
+    .select("day_number, menu_number, dish_name")
+    .eq("meal_plan_week_id", week.id)
+    .order("day_number");
 
-  if (fileError || !file) {
-    area.textContent =
-      "Die PDF-Datei konnte nicht geöffnet werden.";
+  if (menuError) {
+    area.textContent = "Die Tagesgerichte konnten nicht geladen werden: " + menuError.message;
     return;
   }
 
+  if (!menus || menus.length !== 5) {
+    area.textContent = "Der Menüplan ist noch nicht vollständig hinterlegt. Bitte Betreuung informieren.";
+    return;
+  }
+
+  activeMealWeek = week;
+  const monday = new Date(week.week_start + "T12:00:00");
+  const friday = new Date(monday);
+  friday.setDate(friday.getDate() + 4);
+  const dateRange = monday.toLocaleDateString("de-DE") + "–" +
+    friday.toLocaleDateString("de-DE");
+  const headingText = "Essenswoche " + dateRange;
+
+  if (parentAuthenticated) {
+    document.getElementById("orderWeekHeading").textContent =
+      "Bestellung für " + headingText;
+    cutoff = new Date(week.order_cutoff_at);
+    await loadParentOrders();
+  }
+
   area.innerHTML = "";
-
-  const heading = document.createElement("p");
-  heading.textContent =
-    "Menüplan ab " +
-    new Date(week.week_start + "T12:00:00")
-      .toLocaleDateString("de-DE");
-
-  const link = document.createElement("a");
-  link.href = file.signedUrl;
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.textContent = "Menüplan als PDF öffnen";
-
-  const pdf = document.createElement("iframe");
-  pdf.src = file.signedUrl;
-  pdf.title = "Menüplan";
-  pdf.width = "100%";
-  pdf.height = "600";
-
+  const heading = document.createElement("h3");
+  heading.textContent = headingText;
   area.appendChild(heading);
-  area.appendChild(link);
-  area.appendChild(pdf);
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  ["Wochentag", "Menü", "Gericht"].forEach(label => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const weekdayDates = menus.map(menu => {
+    const date = new Date(monday);
+    date.setDate(date.getDate() + Number(menu.day_number) - 1);
+    return { menu, date };
+  });
+
+  weekdayDates.forEach(({ menu, date }) => {
+    const row = document.createElement("tr");
+    const dayCell = document.createElement("td");
+    dayCell.textContent = weekdays[Number(menu.day_number) - 1] + ", " +
+      date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+    const numberCell = document.createElement("td");
+    numberCell.textContent = "Menü " + menu.menu_number;
+    const dishCell = document.createElement("td");
+    dishCell.textContent = menu.dish_name;
+    row.append(dayCell, numberCell, dishCell);
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  area.appendChild(table);
 }
 
 function calculateMenuPlanTimes() {
