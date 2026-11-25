@@ -1603,7 +1603,9 @@ async function loadParentBilling() {
   summary.appendChild(countLine);
 
   const totalLine = document.createElement("p");
-  totalLine.textContent = "Rechnerischer Betrag: " + euro.format(total);
+  totalLine.textContent = (data.billing_mode === "shared"
+    ? "Gesamtsumme Familie: "
+    : "Gesamtsumme deiner Abrechnung: ") + euro.format(total);
   totalLine.style.fontWeight = "bold";
   summary.appendChild(totalLine);
 
@@ -1650,8 +1652,11 @@ async function loadParentBilling() {
       const date = item.date
         ? new Date(item.date + "T12:00:00").toLocaleDateString("de-DE")
         : "Datum unbekannt";
+      const dish = item.dish && item.dish !== "Menütext nicht verfügbar"
+        ? item.dish
+        : "Bestellt";
       li.textContent = date + " – " +
-        (item.dish || "Menütext nicht verfügbar") + " – " +
+        dish + " – " +
         euro.format(Number(item.amount_cents || 0) / 100);
       list.appendChild(li);
     });
