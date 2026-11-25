@@ -517,6 +517,7 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 
 
 <script>
@@ -2261,6 +2262,22 @@ async function loadAvailableMenuPlan() {
 
   table.appendChild(tbody);
   area.appendChild(table);
+
+  if (week.flyer_object_path) {
+    const { data: pdfFile, error: pdfError } = await window.appSupabase.storage
+      .from("speiseplaene")
+      .createSignedUrl(week.flyer_object_path, 3600);
+    if (!pdfError && pdfFile) {
+      const pdfLink = document.createElement("a");
+      pdfLink.href = pdfFile.signedUrl;
+      pdfLink.target = "_blank";
+      pdfLink.rel = "noopener";
+      pdfLink.textContent = "Menüplan als PDF öffnen";
+      pdfLink.style.display = "inline-block";
+      pdfLink.style.marginTop = "14px";
+      area.appendChild(pdfLink);
+    }
+  }
 }
 
 function calculateMenuPlanTimes() {
@@ -2434,6 +2451,57 @@ async function loadOrCreateMenuWeek() {
     " · Bestellschluss: " + new Date(week.order_cutoff_at).toLocaleString("de-DE");
 }
 
+function createMenuPlanPdf(weekStart, menus) {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    throw new Error("Die PDF-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen.");
+  }
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const monday = new Date(weekStart + "T12:00:00");
+  const friday = new Date(monday);
+  friday.setDate(friday.getDate() + 4);
+  const range = monday.toLocaleDateString("de-DE") + " – " +
+    friday.toLocaleDateString("de-DE");
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(19);
+  pdf.text("Essensplan", 20, 24);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(12);
+  pdf.text("Essenswoche " + range, 20, 33);
+  pdf.setDrawColor(150, 180, 170);
+  pdf.line(20, 39, 190, 39);
+
+  let y = 51;
+  const dayNames = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+  menus.forEach((menu, index) => {
+    if (y > 255) {
+      pdf.addPage();
+      y = 25;
+    }
+    const date = new Date(monday);
+    date.setDate(date.getDate() + index);
+    const dateText = date.toLocaleDateString("de-DE", {
+      day: "2-digit", month: "2-digit", year: "numeric"
+    });
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.text(dayNames[index] + ", " + dateText, 20, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(11);
+    pdf.text("Menü " + menu.menu_number, 20, y + 7);
+    const dishLines = pdf.splitTextToSize(menu.dish_name, 135);
+    pdf.text(dishLines, 48, y + 7);
+    y += Math.max(23, dishLines.length * 6 + 13);
+    pdf.setDrawColor(220, 230, 225);
+    pdf.line(20, y - 5, 190, y - 5);
+  });
+  pdf.setFontSize(9);
+  pdf.setTextColor(100);
+  pdf.text("Essensbestellung – Menüplan für Eltern", 20, 285);
+  return pdf.output("blob");
+}
+
 async function saveMenuWeekMenus() {
   const message = document.getElementById("menuUploadMessage");
   const weekStart = document.getElementById("menuWeekStart").value;
@@ -2448,19 +2516,45 @@ async function saveMenuWeekMenus() {
       return;
     }
   }
+
   const button = document.getElementById("saveMenuWeekButton");
   button.disabled = true;
   message.textContent = "Menüplan wird gespeichert …";
   try {
-    const { data, error } = await window.appSupabase.rpc(
+    const { data: weekId, error } = await window.appSupabase.rpc(
       "save_meal_plan_week_menus",
       { p_week_start: weekStart, p_menus: menus }
     );
-    if (error) throw new Error(error.message);
-    message.textContent = "Menüplan erfolgreich gespeichert. Die Woche ist vorbereitet, aber noch nicht für Eltern freigegeben.";
+    if (error) throw new Error("Menüplan konnte nicht gespeichert werden: " + error.message);
+
+    message.textContent = "Menüplan gespeichert. PDF wird erstellt …";
+    const pdfBlob = createMenuPlanPdf(weekStart, menus);
+    const pdfPath = weekStart + "/menueplan.pdf";
+    const { error: uploadError } = await window.appSupabase.storage
+      .from("speiseplaene")
+      .upload(pdfPath, pdfBlob, {
+        contentType: "application/pdf",
+        upsert: true
+      });
+    if (uploadError) {
+      throw new Error("Gerichte sind gespeichert, aber die PDF konnte nicht hochgeladen werden: " + uploadError.message);
+    }
+
+    const { error: updateError } = await window.appSupabase
+      .from("meal_plan_weeks")
+      .update({
+        flyer_object_path: pdfPath,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", weekId);
+    if (updateError) {
+      throw new Error("PDF wurde erstellt und hochgeladen, konnte aber nicht mit der Essenswoche verknüpft werden: " + updateError.message);
+    }
+
+    message.textContent = "Menüplan und Eltern-PDF erfolgreich gespeichert. Die Woche ist vorbereitet, aber noch nicht für Eltern freigegeben.";
     await loadStaffMenuWeeks(weekStart);
   } catch (error) {
-    message.textContent = "Speichern fehlgeschlagen: " + error.message;
+    message.textContent = "Speichern: " + error.message;
     button.disabled = false;
   }
 }
