@@ -2613,14 +2613,11 @@ async function createMenuPdfFromSavedWeek() {
       });
     if (uploadError) throw new Error("PDF konnte nicht hochgeladen werden: " + uploadError.message);
 
-    const { error: updateError } = await window.appSupabase
-      .from("meal_plan_weeks")
-      .update({
-        flyer_object_path: pdfPath,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", week.id);
-    if (updateError) throw new Error("PDF liegt im Speicher, konnte aber nicht mit der Woche verknüpft werden: " + updateError.message);
+    const { error: linkError } = await window.appSupabase.rpc(
+      "link_meal_plan_pdf",
+      { p_week_start: weekStart }
+    );
+    if (linkError) throw new Error("PDF liegt im Speicher, konnte aber nicht mit der Woche verknüpft werden: " + linkError.message);
 
     message.textContent = "PDF erfolgreich erstellt und mit der Essenswoche verknüpft. Die gespeicherten Gerichte wurden nicht verändert.";
     await loadStaffMenuWeeks(weekStart);
