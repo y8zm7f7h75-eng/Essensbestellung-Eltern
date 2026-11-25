@@ -2165,8 +2165,9 @@ async function loadCurrentWeekOrders() {
   area.appendChild(table);
 }
 async function loadAvailableMenuPlan() {
+  const isStaffView = staffAuthenticated;
   const area = document.getElementById(
-    staffAuthenticated ? "staffMenuArea" : "menuArea"
+    isStaffView ? "staffMenuArea" : "menuArea"
   );
 
   if (!window.appSupabase || (!parentAuthenticated && !staffAuthenticated)) {
@@ -2234,7 +2235,10 @@ async function loadAvailableMenuPlan() {
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  ["Wochentag", "Menü", "Gericht"].forEach(label => {
+  const headers = isStaffView
+    ? ["Wochentag", "Menü", "Gericht"]
+    : ["Wochentag", "Gericht"];
+  headers.forEach(label => {
     const th = document.createElement("th");
     th.textContent = label;
     headerRow.appendChild(th);
@@ -2254,18 +2258,23 @@ async function loadAvailableMenuPlan() {
     const dayCell = document.createElement("td");
     dayCell.textContent = weekdays[Number(menu.day_number) - 1] + ", " +
       date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-    const numberCell = document.createElement("td");
-    numberCell.textContent = "Menü " + menu.menu_number;
     const dishCell = document.createElement("td");
     dishCell.textContent = menu.dish_name;
-    row.append(dayCell, numberCell, dishCell);
+
+    if (isStaffView) {
+      const numberCell = document.createElement("td");
+      numberCell.textContent = "Menü " + menu.menu_number;
+      row.append(dayCell, numberCell, dishCell);
+    } else {
+      row.append(dayCell, dishCell);
+    }
     tbody.appendChild(row);
   });
 
   table.appendChild(tbody);
   area.appendChild(table);
 
-  if (week.flyer_object_path) {
+  if (isStaffView && week.flyer_object_path) {
     const { data: pdfFile, error: pdfError } = await window.appSupabase.storage
       .from("speiseplaene")
       .createSignedUrl(week.flyer_object_path, 3600);
