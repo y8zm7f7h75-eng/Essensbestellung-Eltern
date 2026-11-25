@@ -2734,7 +2734,7 @@ async function prepareSupplierOrder() {
     const thead = document.createElement("thead");
     const headerRow = document.createElement("tr");
 
-    ["Datum / Wochentag", "Anzahl Essen normal"].forEach(label => {
+    ["Datum / Wochentag", "Menünummer", "Menü als Text", "Anzahl"].forEach(label => {
       const th = document.createElement("th");
       th.textContent = label;
       headerRow.appendChild(th);
@@ -2750,16 +2750,27 @@ async function prepareSupplierOrder() {
 
       const dateCell = document.createElement("td");
       const date = new Date(day.date + "T12:00:00Z");
-
       dateCell.textContent =
         date.toLocaleDateString("de-DE") + " – " + day.weekday;
 
+      const menuNumberCell = document.createElement("td");
+      menuNumberCell.textContent = day.orderable
+        ? String(day.menu_number ?? "—")
+        : "—";
+
+      const dishCell = document.createElement("td");
+      dishCell.textContent = day.orderable
+        ? String(day.dish_name ?? "—")
+        : "—";
+
       const countCell = document.createElement("td");
       countCell.textContent = day.orderable
-        ? String(day.normal_meal_count ?? 0)
+        ? String(day.meal_count ?? 0)
         : "—";
 
       row.appendChild(dateCell);
+      row.appendChild(menuNumberCell);
+      row.appendChild(dishCell);
       row.appendChild(countCell);
       tbody.appendChild(row);
     });
