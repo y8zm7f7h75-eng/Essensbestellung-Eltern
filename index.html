@@ -464,34 +464,30 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <div id="menuUpload">
 
-    <h3>Menüplan für eine Woche hochladen</h3>
+    <h3>Menüplan vorbereiten</h3>
 
-    <label for="menuWeekStart">Montag der Kalenderwoche</label>
+    <label for="menuSavedWeeks">Bereits angelegte Essenswochen</label>
+    <select id="menuSavedWeeks">
+      <option value="">Bitte eine Woche auswählen</option>
+    </select>
 
+    <label for="menuWeekStart">Oder neue Essenswoche auswählen (Montag)</label>
     <input type="date" id="menuWeekStart">
 
-    <label for="menuReleaseAt">Elternfreigabe (automatisch berechnet)</label>
+    <button type="button" id="loadMenuWeekButton">Woche laden / neu anlegen</button>
 
+    <label for="menuReleaseAt">Elternfreigabe</label>
     <input type="datetime-local" id="menuReleaseAt" readonly>
 
-    <label for="menuCutoffAt">Bestellschluss (automatisch berechnet)</label>
-
+    <label for="menuCutoffAt">Bestellschluss</label>
     <input type="datetime-local" id="menuCutoffAt" readonly>
 
-    <label for="menuZipFile">Speiseplan-Datei (ZIP)</label>
+    <div id="menuDayInputs"></div>
 
-    <input type="file" id="menuZipFile" accept=".zip,application/zip">
+    <button type="button" id="saveMenuWeekButton" disabled>Menüplan speichern</button>
 
-    <label for="menuPdfFile">Menüplan für Eltern (PDF)</label>
-
-    <input type="file" id="menuPdfFile" accept=".pdf,application/pdf">
-
-    <button type="button" id="uploadMenuPlanButton">Menüplan hochladen</button>
-
-    <p id="menuUploadMessage" class="note">
-
-      Bitte eine Kalenderwoche und beide Dateien auswählen.
-
+    <p id="menuUploadMessage" class="note" role="status">
+      Bitte eine bereits angelegte Woche auswählen oder einen Montag eingeben.
     </p>
 
   </div>
@@ -668,6 +664,7 @@ function setStaffAccess(allowed, role = null) {
 
   if (allowed) {
     loadAvailableMenuPlan();
+    loadStaffMenuWeeks();
   }
 }
 
@@ -2247,144 +2244,222 @@ function calculateMenuPlanTimes() {
   const weekValue = document.getElementById("menuWeekStart").value;
   const releaseField = document.getElementById("menuReleaseAt");
   const cutoffField = document.getElementById("menuCutoffAt");
-
   releaseField.value = "";
   cutoffField.value = "";
-
-  if (!weekValue) return;
+  if (!weekValue) return null;
 
   const parts = weekValue.split("-").map(Number);
-  const monday = new Date(
-    parts[0],
-    parts[1] - 1,
-    parts[2],
-    12
-  );
-
+  const monday = new Date(parts[0], parts[1] - 1, parts[2], 12);
   if (monday.getDay() !== 1) {
     document.getElementById("menuUploadMessage").textContent =
       "Bitte einen Montag als Wochenbeginn auswählen.";
-    return;
+    return null;
   }
 
   const release = new Date(monday);
   release.setDate(release.getDate() - 10);
   release.setHours(10, 0, 0, 0);
+  const cutoffDate = new Date(monday);
+  cutoffDate.setDate(cutoffDate.getDate() - 4);
+  cutoffDate.setHours(12, 30, 0, 0);
 
-  const cutoff = new Date(monday);
-  cutoff.setDate(cutoff.getDate() - 4);
-  cutoff.setHours(12, 30, 0, 0);
-
-  function formatLocalDateTime(date) {
+  const formatLocal = date => {
     const pad = value => String(value).padStart(2, "0");
-
-    return date.getFullYear() + "-" +
-      pad(date.getMonth() + 1) + "-" +
-      pad(date.getDate()) + "T" +
-      pad(date.getHours()) + ":" +
-      pad(date.getMinutes());
-  }
-
-  releaseField.value = formatLocalDateTime(release);
-  cutoffField.value = formatLocalDateTime(cutoff);
-
-  document.getElementById("menuUploadMessage").textContent =
-    "Freigabe und Bestellschluss wurden automatisch berechnet.";
+    return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" +
+      pad(date.getDate()) + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
+  };
+  releaseField.value = formatLocal(release);
+  cutoffField.value = formatLocal(cutoffDate);
+  return { releaseAt: release.toISOString(), cutoffAt: cutoffDate.toISOString() };
 }
 
-document.getElementById("menuWeekStart").addEventListener(
-  "change",
-  calculateMenuPlanTimes
-);
+function renderMenuDayInputs(savedMenus = []) {
+  const container = document.getElementById("menuDayInputs");
+  container.innerHTML = "";
+  weekdays.forEach((day, index) => {
+    const saved = savedMenus.find(item => Number(item.day_number) === index + 1);
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "padding:12px 0;border-bottom:1px solid #e5ece9;";
+    const heading = document.createElement("h4");
+    heading.textContent = day;
+    const numberLabel = document.createElement("label");
+    numberLabel.textContent = "Menünummer";
+    numberLabel.htmlFor = "menuNumber" + (index + 1);
+    const number = document.createElement("select");
+    number.id = "menuNumber" + (index + 1);
+    number.innerHTML = '<option value="">Bitte wählen</option><option value="1">Menü 1</option><option value="2">Menü 2</option><option value="3">Menü 3</option>';
+    if (saved) number.value = String(saved.menu_number);
+    const dishLabel = document.createElement("label");
+    dishLabel.textContent = "Gericht";
+    dishLabel.htmlFor = "menuDish" + (index + 1);
+    const dish = document.createElement("input");
+    dish.id = "menuDish" + (index + 1);
+    dish.type = "text";
+    dish.maxLength = 250;
+    dish.placeholder = "Gericht für " + day;
+    dish.style.width = "100%";
+    if (saved) dish.value = saved.dish_name || "";
+    wrap.append(heading, numberLabel, number, dishLabel, dish);
+    container.appendChild(wrap);
+  });
+}
 
-function validateMenuPlanUpload() {
-  const weekStart = document.getElementById("menuWeekStart").value;
-  const releaseAt = document.getElementById("menuReleaseAt").value;
-  const cutoffAt = document.getElementById("menuCutoffAt").value;
-  const zipFile = document.getElementById("menuZipFile").files[0];
-  const pdfFile = document.getElementById("menuPdfFile").files[0];
+async function loadStaffMenuWeeks(selectedWeek = "") {
+  const select = document.getElementById("menuSavedWeeks");
+  if (!select || !window.appSupabase || !staffAuthenticated) return;
+  const { data, error } = await window.appSupabase
+    .from("meal_plan_weeks")
+    .select("week_start, calendar_week, calendar_year, status")
+    .in("status", ["draft", "checked", "released", "completed"])
+    .order("week_start", { ascending: true });
+  if (error) {
+    document.getElementById("menuUploadMessage").textContent =
+      "Wochen konnten nicht geladen werden: " + error.message;
+    return;
+  }
+  select.innerHTML = '<option value="">Bitte eine Woche auswählen</option>';
+  (data || []).forEach(week => {
+    const option = document.createElement("option");
+    option.value = week.week_start;
+    option.textContent = "KW " + week.calendar_week + "/" + week.calendar_year +
+      " · " + new Date(week.week_start + "T12:00:00").toLocaleDateString("de-DE") +
+      " · " + week.status;
+    select.appendChild(option);
+  });
+  if (selectedWeek) select.value = selectedWeek;
+}
+
+async function loadOrCreateMenuWeek() {
   const message = document.getElementById("menuUploadMessage");
-
+  const weekStart = document.getElementById("menuWeekStart").value;
+  const saveButton = document.getElementById("saveMenuWeekButton");
   if (!staffAuthenticated || !["staff", "admin"].includes(staffRole)) {
     message.textContent = "Bitte zuerst als Betreuung anmelden.";
-    return false;
+    return;
   }
-
-  if (!weekStart || !releaseAt || !cutoffAt || !zipFile || !pdfFile) {
-    message.textContent = "Bitte alle Felder ausfüllen und beide Dateien auswählen.";
-    return false;
+  if (!weekStart) {
+    message.textContent = "Bitte zuerst den Montag der Essenswoche auswählen.";
+    return;
   }
-
+  const times = calculateMenuPlanTimes();
+  if (!times) return;
   const monday = new Date(weekStart + "T12:00:00");
-
-  if (monday.getDay() !== 1) {
-    message.textContent = "Bitte als Wochenbeginn einen Montag auswählen.";
-    return false;
-  }
-
-  const today = new Date();
-  const currentMonday = new Date(today);
-  currentMonday.setDate(today.getDate() - (today.getDay() + 6) % 7);
-
+  const currentMonday = new Date();
+  currentMonday.setDate(currentMonday.getDate() - (currentMonday.getDay() + 6) % 7);
+  currentMonday.setHours(0,0,0,0);
   if (monday <= currentMonday) {
-    message.textContent = "Bitte eine zukünftige Kalenderwoche auswählen.";
-    return false;
+    message.textContent = "Es können nur zukünftige Essenswochen bearbeitet werden.";
+    return;
   }
 
-  const release = new Date(releaseAt);
-  const cutoffDate = new Date(cutoffAt);
-
-  if (Number.isNaN(release.getTime()) ||
-      Number.isNaN(cutoffDate.getTime()) ||
-      release <= new Date() ||
-      cutoffDate <= release) {
-    message.textContent =
-      "Die Elternfreigabe muss in der Zukunft liegen und vor dem Bestellschluss stattfinden.";
-    return false;
-  }
-
-  if (!zipFile.name.toLowerCase().endsWith(".zip") ||
-      !pdfFile.name.toLowerCase().endsWith(".pdf")) {
-    message.textContent = "Bitte eine ZIP-Datei und eine PDF-Datei auswählen.";
-    return false;
-  }
-
-  return true;
-}
-  async function uploadMenuPlanFiles(weekStart, zipFile, pdfFile) {
+  message.textContent = "Essenswoche wird gesucht …";
   const supabase = window.appSupabase;
+  let { data: week, error } = await supabase
+    .from("meal_plan_weeks")
+    .select("id, week_start, status, release_at, order_cutoff_at")
+    .eq("week_start", weekStart)
+    .maybeSingle();
+  if (error) throw new Error("Woche konnte nicht geprüft werden: " + error.message);
 
-  const zipPath = `${weekStart}/speiseplan.zip`;
-  const pdfPath = `${weekStart}/menueplan.pdf`;
-
-  const zipResult = await supabase.storage
-    .from("speiseplaene")
-    .upload(zipPath, zipFile, {
-      upsert: true,
-      contentType: "application/zip"
-    });
-
-  if (zipResult.error) {
-    throw new Error("ZIP-Upload fehlgeschlagen: " + zipResult.error.message);
+  if (!week) {
+    const { data: newId, error: createError } = await supabase.rpc(
+      "prepare_meal_plan_week",
+      {
+        p_week_start: weekStart,
+        p_release_at: times.releaseAt,
+        p_order_cutoff_at: times.cutoffAt
+      }
+    );
+    if (createError) throw new Error("Woche konnte nicht angelegt werden: " + createError.message);
+    const result = await supabase
+      .from("meal_plan_weeks")
+      .select("id, week_start, status, release_at, order_cutoff_at")
+      .eq("id", newId)
+      .single();
+    if (result.error) throw new Error("Neue Woche konnte nicht geladen werden: " + result.error.message);
+    week = result.data;
   }
 
-  const pdfResult = await supabase.storage
-    .from("speiseplaene")
-    .upload(pdfPath, pdfFile, {
-      upsert: true,
-      contentType: "application/pdf"
-    });
-
-  if (pdfResult.error) {
-    throw new Error("PDF-Upload fehlgeschlagen: " + pdfResult.error.message);
+  if (!["draft", "checked"].includes(week.status)) {
+    saveButton.disabled = true;
+    renderMenuDayInputs([]);
+    message.textContent = "Diese Woche ist bereits " + week.status +
+      " und kann nicht mehr bearbeitet werden.";
+    return;
+  }
+  if (new Date(week.release_at).getTime() !== new Date(times.releaseAt).getTime() ||
+      new Date(week.order_cutoff_at).getTime() !== new Date(times.cutoffAt).getTime()) {
+    message.textContent = "Die gespeicherten Freigabe- oder Bestellschlusszeiten weichen von der Berechnung ab. Bitte nicht überschreiben.";
+    saveButton.disabled = true;
+    return;
   }
 
-  return {
-    zipPath,
-    pdfPath
-  };
+  const { data: menus, error: menusError } = await supabase
+    .from("meal_plan_day_menus")
+    .select("day_number, menu_number, dish_name")
+    .eq("meal_plan_week_id", week.id)
+    .order("day_number");
+  if (menusError) throw new Error("Gespeicherte Gerichte konnten nicht geladen werden: " + menusError.message);
+
+  renderMenuDayInputs(menus || []);
+  saveButton.disabled = false;
+  await loadStaffMenuWeeks(weekStart);
+  message.textContent = (menus && menus.length
+    ? "Gespeicherte Gerichte geladen. Änderungen sind bis zur Freigabe möglich."
+    : "Neue Woche angelegt. Bitte Montag bis Freitag ausfüllen.") +
+    " Freigabe: " + new Date(week.release_at).toLocaleString("de-DE") +
+    " · Bestellschluss: " + new Date(week.order_cutoff_at).toLocaleString("de-DE");
 }
-  
+
+async function saveMenuWeekMenus() {
+  const message = document.getElementById("menuUploadMessage");
+  const weekStart = document.getElementById("menuWeekStart").value;
+  const menus = weekdays.map((day, index) => ({
+    day_number: index + 1,
+    menu_number: Number(document.getElementById("menuNumber" + (index + 1)).value),
+    dish_name: document.getElementById("menuDish" + (index + 1)).value.trim()
+  }));
+  for (let i = 0; i < menus.length; i++) {
+    if (![1,2,3].includes(menus[i].menu_number) || !menus[i].dish_name) {
+      message.textContent = "Bitte für " + weekdays[i] + " eine Menünummer und ein Gericht eintragen.";
+      return;
+    }
+  }
+  const button = document.getElementById("saveMenuWeekButton");
+  button.disabled = true;
+  message.textContent = "Menüplan wird gespeichert …";
+  try {
+    const { data, error } = await window.appSupabase.rpc(
+      "save_meal_plan_week_menus",
+      { p_week_start: weekStart, p_menus: menus }
+    );
+    if (error) throw new Error(error.message);
+    message.textContent = "Menüplan erfolgreich gespeichert. Die Woche ist vorbereitet, aber noch nicht für Eltern freigegeben.";
+    await loadStaffMenuWeeks(weekStart);
+  } catch (error) {
+    message.textContent = "Speichern fehlgeschlagen: " + error.message;
+    button.disabled = false;
+  }
+}
+
+document.getElementById("menuWeekStart").addEventListener("change", () => {
+  calculateMenuPlanTimes();
+  document.getElementById("menuSavedWeeks").value = "";
+});
+document.getElementById("menuSavedWeeks").addEventListener("change", event => {
+  document.getElementById("menuWeekStart").value = event.target.value;
+  calculateMenuPlanTimes();
+  loadOrCreateMenuWeek().catch(error => {
+    document.getElementById("menuUploadMessage").textContent = "Fehler: " + error.message;
+  });
+});
+document.getElementById("loadMenuWeekButton").addEventListener("click", () => {
+  loadOrCreateMenuWeek().catch(error => {
+    document.getElementById("menuUploadMessage").textContent = "Fehler: " + error.message;
+  });
+});
+document.getElementById("saveMenuWeekButton").addEventListener("click", saveMenuWeekMenus);
+
 async function prepareSupplierOrder() {
   const weekInput = document.getElementById("supplierWeekStart");
   const message = document.getElementById("supplierOrderMessage");
@@ -2533,94 +2608,6 @@ async function prepareSupplierOrder() {
   }
 }
 
-  async function saveMenuPlanUpload() {
-  const message = document.getElementById("menuUploadMessage");
-  const weekStart = document.getElementById("menuWeekStart").value;
-  const releaseAt = new Date(
-    document.getElementById("menuReleaseAt").value
-  ).toISOString();
-  const cutoffAt = new Date(
-    document.getElementById("menuCutoffAt").value
-  ).toISOString();
-  const zipFile = document.getElementById("menuZipFile").files[0];
-  const pdfFile = document.getElementById("menuPdfFile").files[0];
-
-  const supabase = window.appSupabase;
-
-  message.textContent = "Kalenderwoche wird geprüft …";
-
-  const { data: existing, error: lookupError } = await supabase
-    .from("meal_plan_weeks")
-    .select("week_start, status, release_at, order_cutoff_at, zip_object_path, flyer_object_path")
-    .eq("week_start", weekStart)
-    .maybeSingle();
-
-  if (lookupError) {
-    throw new Error("Kalenderwoche konnte nicht geprüft werden: " + lookupError.message);
-  }
-
-  if (existing && existing.status !== "draft") {
-    throw new Error("Für diese Woche gibt es bereits einen vorbereiteten oder freigegebenen Menüplan. Bitte nicht überschreiben.");
-  }
-
-  if (existing &&
-      (new Date(existing.release_at).getTime() !== new Date(releaseAt).getTime() ||
-       new Date(existing.order_cutoff_at).getTime() !== new Date(cutoffAt).getTime())) {
-    throw new Error("Für diese Woche existiert bereits ein Entwurf mit anderen Zeitangaben. Bitte Betreuung/Admin fragen.");
-  }
-
-  if (!existing) {
-    const { error: prepareError } = await supabase.rpc(
-      "prepare_meal_plan_week",
-      {
-        p_week_start: weekStart,
-        p_release_at: releaseAt,
-        p_order_cutoff_at: cutoffAt
-      }
-    );
-
-    if (prepareError) {
-      throw new Error("Kalenderwoche konnte nicht angelegt werden: " + prepareError.message);
-    }
-  }
-
-  message.textContent = "Dateien werden in den privaten Speicher hochgeladen …";
-
-  const paths = await uploadMenuPlanFiles(weekStart, zipFile, pdfFile);
-
-  message.textContent = "Dateien sind hochgeladen. Kalenderwoche wird vorbereitet …";
-
-  const { error: filesError } = await supabase.rpc(
-    "set_meal_plan_week_files",
-    {
-      p_week_start: weekStart,
-      p_zip_object_path: paths.zipPath,
-      p_flyer_object_path: paths.pdfPath
-    }
-  );
-
-  if (filesError) {
-    throw new Error("Dateien sind hochgeladen, aber die Kalenderwoche konnte nicht vorbereitet werden: " + filesError.message);
-  }
-
-  message.textContent =
-    "Menüplan und Speiseplandatei wurden hochgeladen. Die Freigabe erfolgt zum eingestellten Zeitpunkt.";
-}
-document.getElementById("uploadMenuPlanButton").addEventListener("click", async () => {
-  if (!validateMenuPlanUpload()) return;
-
-  const button = document.getElementById("uploadMenuPlanButton");
-  button.disabled = true;
-
-  try {
-    await saveMenuPlanUpload();
-  } catch (error) {
-    document.getElementById("menuUploadMessage").textContent =
-      "Fehler: " + error.message;
-  } finally {
-    button.disabled = false;
-  }
-});
 
 init();
 
