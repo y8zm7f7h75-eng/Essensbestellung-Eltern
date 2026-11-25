@@ -318,11 +318,11 @@ th, td { padding: 9px 5px; text-align: left; border-bottom: 1px solid #e5ece9; }
 
   <div id="parentBillingView" hidden>
 
-  <h2>Monatsübersicht – Beispieldaten</h2>
-
-  <p id="monthlyTotal"></p>
-
-  <p class="note">Die Abrechnung ist eine Demo, noch keine verbindliche Zahlungsübersicht.</p>
+  <h2 id="billingMonthHeading">Monatsabrechnung</h2>
+  <p id="monthlyStatus" class="note">Abrechnung wird geladen …</p>
+  <div id="monthlySummary"></div>
+  <div id="monthlyDetails"></div>
+  <p class="note">Dies ist eine Testabrechnung. Sie ist noch keine Zahlungsaufforderung.</p>
 
 </div>
 
@@ -1550,6 +1550,92 @@ function showParentTab(tab) {
   document.getElementById("parentOrderTab").classList.toggle("active", tab === "order");
   document.getElementById("parentBillingTab").classList.toggle("active", tab === "billing");
 
+  if (tab === "billing") loadParentBilling();
+
+}
+
+async function loadParentBilling() {
+  const status = document.getElementById("monthlyStatus");
+  const summary = document.getElementById("monthlySummary");
+  const details = document.getElementById("monthlyDetails");
+  const heading = document.getElementById("billingMonthHeading");
+
+  if (!status || !summary || !details || !heading) return;
+  summary.replaceChildren();
+  details.replaceChildren();
+
+  if (!parentAuthenticated || !window.appSupabase) {
+    status.textContent = "Bitte zuerst als Elternteil anmelden.";
+    return;
+  }
+
+  const now = new Date();
+  const monthStart = now.getFullYear() + "-" +
+    String(now.getMonth() + 1).padStart(2, "0") + "-01";
+  heading.textContent = "Monatsabrechnung " +
+    now.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  status.textContent = "Abrechnung wird geladen …";
+
+  const { data, error } = await window.appSupabase.rpc(
+    "get_monthly_billing",
+    { p_month: monthStart }
+  );
+
+  if (error || !data) {
+    status.textContent = "Die Monatsabrechnung konnte nicht geladen werden. " +
+      (error?.message || "");
+    return;
+  }
+
+  const euro = new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR"
+  });
+  const total = Number(data.total_cents || 0) / 100;
+  const count = Number(data.meal_count || 0);
+
+  status.textContent = data.billing_mode === "shared"
+    ? "Gemeinsame Familienabrechnung"
+    : "Deine persönliche Abrechnung";
+
+  const countLine = document.createElement("p");
+  countLine.textContent = "Berechnete Essen: " + count;
+  summary.appendChild(countLine);
+
+  const totalLine = document.createElement("p");
+  totalLine.textContent = "Rechnerischer Betrag: " + euro.format(total);
+  totalLine.style.fontWeight = "bold";
+  summary.appendChild(totalLine);
+
+  const detailHeading = document.createElement("h3");
+  detailHeading.textContent = "Einzelne Bestellungen";
+  details.appendChild(detailHeading);
+
+  if (data.visibility_level === 1) {
+    details.textContent = "Für diese Freigabe ist nur die Monatssumme sichtbar.";
+    return;
+  }
+
+  const rows = Array.isArray(data.details) ? data.details : [];
+  if (rows.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "Für diesen Monat liegen keine berechneten Essen vor.";
+    details.appendChild(empty);
+    return;
+  }
+
+  const list = document.createElement("ul");
+  rows.forEach(item => {
+    const li = document.createElement("li");
+    const date = item.date
+      ? new Date(item.date + "T12:00:00").toLocaleDateString("de-DE")
+      : "Datum unbekannt";
+    li.textContent = date + " – " +
+      (item.dish || "Menütext nicht verfügbar") + " – " +
+      euro.format(Number(item.amount_cents || 0) / 100);
+    list.appendChild(li);
+  });
+  details.appendChild(list);
 }
 function showStaffTab(tab) {
   document.getElementById("staffDailyView").hidden = tab !== "daily";
