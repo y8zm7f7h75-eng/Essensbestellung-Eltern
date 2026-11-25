@@ -1624,18 +1624,49 @@ async function loadParentBilling() {
     return;
   }
 
-  const list = document.createElement("ul");
+  const children = new Map();
   rows.forEach(item => {
-    const li = document.createElement("li");
-    const date = item.date
-      ? new Date(item.date + "T12:00:00").toLocaleDateString("de-DE")
-      : "Datum unbekannt";
-    li.textContent = date + " – " +
-      (item.dish || "Menütext nicht verfügbar") + " – " +
-      euro.format(Number(item.amount_cents || 0) / 100);
-    list.appendChild(li);
+    const childId = item.child_id || "unknown";
+    if (!children.has(childId)) {
+      children.set(childId, {
+        name: item.child_name || "Kind ohne Namen",
+        items: [],
+        totalCents: 0
+      });
+    }
+    const group = children.get(childId);
+    group.items.push(item);
+    group.totalCents += Number(item.amount_cents || 0);
   });
-  details.appendChild(list);
+
+  children.forEach(group => {
+    const childHeading = document.createElement("h4");
+    childHeading.textContent = group.name;
+    details.appendChild(childHeading);
+
+    const list = document.createElement("ul");
+    group.items.forEach(item => {
+      const li = document.createElement("li");
+      const date = item.date
+        ? new Date(item.date + "T12:00:00").toLocaleDateString("de-DE")
+        : "Datum unbekannt";
+      li.textContent = date + " – " +
+        (item.dish || "Menütext nicht verfügbar") + " – " +
+        euro.format(Number(item.amount_cents || 0) / 100);
+      list.appendChild(li);
+    });
+    details.appendChild(list);
+
+    const childCount = document.createElement("p");
+    childCount.textContent = "Berechnete Essen: " + group.items.length;
+    details.appendChild(childCount);
+
+    const childTotal = document.createElement("p");
+    childTotal.textContent = "Zwischensumme: " +
+      euro.format(group.totalCents / 100);
+    childTotal.style.fontWeight = "bold";
+    details.appendChild(childTotal);
+  });
 }
 function showStaffTab(tab) {
   document.getElementById("staffDailyView").hidden = tab !== "daily";
