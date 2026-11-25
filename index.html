@@ -1927,10 +1927,6 @@ async function cancelMeal() {
 
 function renderAll() {
 
-  let count = 0;
-
-  let cancelled = 0;
-
   const area = document.getElementById("weeklyList");
 
   if (!area) return;
@@ -1959,10 +1955,6 @@ function renderAll() {
 
       const cancel = isCancelled(c.id, day);
 
-      if (isX && cancel) cancelled++;
-
-      if (isX && !cancel) count++;
-
       const tr = document.createElement("tr");
 
       [c.name, isX ? (cancel ? "Storniert" : "X") : "S",
@@ -1986,16 +1978,6 @@ function renderAll() {
     area.appendChild(table);
 
   });
-
-  document.getElementById("monthlyTotal").textContent =
-
-    "Aktuell nicht stornierte Demo-Essen: " + count +
-
-    " · Stornierte Demo-Essen: " + cancelled +
-
-    " · Rechnerischer Betrag: " + (count * price).toLocaleString("de-DE",
-
-      { style: "currency", currency: "EUR" });
 
 }
  async function saveChildOrders(childId, card) {
