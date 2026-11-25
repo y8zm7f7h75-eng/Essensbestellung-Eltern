@@ -2177,7 +2177,7 @@ async function loadAvailableMenuPlan() {
 
   const { data: weeks, error } = await window.appSupabase
     .from("meal_plan_weeks")
-    .select("id, week_start, order_cutoff_at")
+    .select("id, week_start, order_cutoff_at, flyer_object_path")
     .eq("status", "released")
     .order("week_start", { ascending: false })
     .limit(1);
