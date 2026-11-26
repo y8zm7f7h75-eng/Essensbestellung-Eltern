@@ -1138,7 +1138,12 @@ async function saveChildAllergies(childId, card) {
       input.checked = savedIds.includes(Number(input.value));
     });
 
-    message.textContent = "Die Änderung wurde nicht gespeichert.";
+    message.textContent = "";
+alert(
+  "Allergieangaben unverändert\n\n" +
+  "Die Änderung wurde nicht gespeichert.\n\n" +
+  "Die bisher gespeicherten Angaben bleiben bestehen."
+);
     return;
   }
 
