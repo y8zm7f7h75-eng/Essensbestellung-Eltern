@@ -1129,9 +1129,15 @@ async function saveChildAllergies(childId, card) {
     card.querySelectorAll("input[type='checkbox']:checked")
   ).map(input => Number(input.value));
 
-  if (!confirm(
+    if (!confirm(
     "Bitte prüfe die Allergieangaben sorgfältig. Sie gelten dauerhaft für zukünftige Essensbestellungen dieses Kindes. Sind die Angaben korrekt und aktuell?"
   )) {
+    const savedIds = childAllergyMap[childId] || [];
+
+    card.querySelectorAll("input[type='checkbox']").forEach(input => {
+      input.checked = savedIds.includes(Number(input.value));
+    });
+
     message.textContent = "Die Änderung wurde nicht gespeichert.";
     return;
   }
