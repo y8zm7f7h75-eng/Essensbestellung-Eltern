@@ -646,7 +646,7 @@ let cancellations = {};
 let savedOrderSnapshots = {};
 let price = 3.90;
 
-let cutoff = nextThursday();
+let cutoff = nextWednesday();
 let activeMealWeek = null;
 let view = "parent";
 let staffAuthenticated = false;
@@ -1319,15 +1319,15 @@ async function restoreStaffSession() {
   }
 }
 
-function nextThursday() {
+function nextWednesday() {
 
   const d = new Date();
 
-  const daysUntil = (4 - d.getDay() + 7) % 7 || 7;
+  const daysUntil = (3 - d.getDay() + 7) % 7 || 7;
 
   d.setDate(d.getDate() + daysUntil);
 
-  d.setHours(12, 30, 0, 0);
+  d.setHours(10, 30, 0, 0);
 
   return d;
 
@@ -1771,7 +1771,7 @@ async function loadSettings() {
   document.getElementById("price").value = price.toFixed(2).replace(".", ",");
 
   const weekday = Number(data.cutoff_weekday);
-  const timeParts = String(data.cutoff_time || "12:30:00").split(":");
+  const timeParts = String(data.cutoff_time || "10:30:00").split(":");
   const hours = Number(timeParts[0]);
   const minutes = Number(timeParts[1]);
   const nextCutoff = new Date();
@@ -2415,8 +2415,8 @@ function calculateMenuPlanTimes() {
   release.setDate(release.getDate() - 10);
   release.setHours(10, 0, 0, 0);
   const cutoffDate = new Date(monday);
-  cutoffDate.setDate(cutoffDate.getDate() - 4);
-  cutoffDate.setHours(12, 30, 0, 0);
+  cutoffDate.setDate(cutoffDate.getDate() - 5);
+  cutoffDate.setHours(10, 30, 0, 0);
 
   const formatLocal = date => {
     const pad = value => String(value).padStart(2, "0");
