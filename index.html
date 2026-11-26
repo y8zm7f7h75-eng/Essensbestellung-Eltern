@@ -1140,9 +1140,10 @@ async function saveChildAllergies(childId, card) {
 
   const { data, error } = await window.appSupabase.rpc(
     "save_child_meal_variants",
-    {
+        {
       p_child_id: childId,
-      p_variant_ids: variantIds
+      p_variant_ids: variantIds,
+      p_confirmed: true
     }
   );
 
